@@ -496,6 +496,15 @@ async function fetchLocalNews() {
   return onlyTurkishNews(await fetchRawLocalNews());
 }
 
+function withTimeout(promise, timeoutMs, message) {
+  let timerId;
+  const timeout = new Promise((_, reject) => {
+    timerId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timerId));
+}
+
 async function fetchRawLocalNews() {
   const response = await fetch("data/news.json", { cache: "no-store" });
   if (!response.ok) throw new Error("Local news fallback failed.");
@@ -532,7 +541,7 @@ async function loadNews() {
   if (container) renderSkeleton();
 
   try {
-    const remoteNews = window.supabaseClient ? await fetchPublishedPosts() : [];
+    const remoteNews = window.supabaseClient ? await withTimeout(fetchPublishedPosts(), 2500, "Supabase news fetch timed out.") : [];
     allPublishedNews = onlyTurkishNews(remoteNews);
     if (allPublishedNews.length < 12) {
       allPublishedNews = mergeNewsById(allPublishedNews, await fetchLocalNews()).slice(0, Math.max(12, allPublishedNews.length));
