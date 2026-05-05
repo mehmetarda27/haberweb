@@ -147,15 +147,32 @@ function normalizeImageUrl(article) {
   return article.imageUrl || "";
 }
 
+function fallbackImageForArticle(article) {
+  const category = getCategory(article);
+  const byCategory = {
+    "Yapay Zeka": "assets/news/tp-ai-enterprise-agents-001.svg",
+    "Oyun": "assets/news/tp-gaming-cloud-latency-013.svg",
+    "Donanım": "assets/news/tp-hardware-nvidia-gpu-007.svg",
+    "Mobil": "assets/news/tp-mobile-android-ai-004.svg",
+    "Siber Güvenlik": "assets/news/tp-cyber-zero-trust-010.svg",
+    "Girişimcilik": "assets/news/tp-space-satellite-internet-016.svg",
+    "İnceleme": "assets/news/tp-hardware-laptop-npu-008.svg",
+    "Teknoloji": "assets/news/tp-ai-edge-models-002.svg"
+  };
+  return byCategory[category] || FALLBACK_IMAGE;
+}
+
 function imageMarkup(article, className = "") {
   const imageUrl = normalizeImageUrl(article);
-  const src = imageUrl || FALLBACK_IMAGE;
+  const fallback = fallbackImageForArticle(article);
+  const src = imageUrl || fallback;
   const fallbackClass = imageUrl ? "" : " is-fallback-image";
-  return `<img${className ? ` class="${escapeHTML(className)}${fallbackClass}"` : ` class="${fallbackClass.trim()}"`} src="${escapeHTML(src)}" alt="${escapeHTML(article.title || "Haber görseli")}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';this.classList.add('is-fallback-image');" />`;
+  return `<img${className ? ` class="${escapeHTML(className)}${fallbackClass}"` : ` class="${fallbackClass.trim()}"`} src="${escapeHTML(src)}" alt="${escapeHTML(article.title || "Haber görseli")}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHTML(fallback)}';this.classList.add('is-fallback-image');" />`;
 }
 
 function articleHref(article) {
-  return `haber.html?id=${encodeURIComponent(article.id)}`;
+  const id = article.id || article.slug || article.title || "";
+  return `haber.html?id=${encodeURIComponent(id)}`;
 }
 
 function getSourceUrl(article) {
@@ -367,15 +384,15 @@ async function fetchPosts(select = "id,title,content,image_url,published,created
 
 async function fetchPublishedPosts() {
   try {
-    const posts = await fetchPosts("id,title,content,image_url,imageUrl,image,urlToImage,thumbnail,urlToImageLarge,sourceImage,published,created_at,source_url,url,sourceUrl,category");
+    const posts = await fetchPosts("id,slug,title,content,image_url,imageUrl,image,urlToImage,thumbnail,urlToImageLarge,sourceImage,published,created_at,source_url,url,sourceUrl,category");
     return posts.map(normalizeNewsImage);
   } catch {
     try {
-      const posts = await fetchPosts("id,title,content,image_url,published,created_at,source_url,url,sourceUrl,category");
+      const posts = await fetchPosts("id,slug,title,content,image_url,published,created_at,source_url,url,sourceUrl,category");
       return posts.map(normalizeNewsImage);
     } catch {
       try {
-        const posts = await fetchPosts("id,title,content,imageUrl,published,created_at,source_url,url,sourceUrl,category");
+        const posts = await fetchPosts("id,slug,title,content,imageUrl,published,created_at,source_url,url,sourceUrl,category");
         return posts.map(normalizeNewsImage);
       } catch {
         const posts = await fetchPosts("id,title,content,published,created_at,source_url,url,sourceUrl,category");
@@ -387,49 +404,49 @@ async function fetchPublishedPosts() {
 
 async function fetchPostById(id) {
   let data = null;
+  console.log("[TechPulse detail] Gelen id:", id);
   if (window.supabaseClient) {
-    try {
-        const response = await window.supabaseClient
-        .from("posts")
-        .select("id,title,content,image_url,imageUrl,image,urlToImage,thumbnail,urlToImageLarge,sourceImage,published,created_at,source_url,url,sourceUrl,category")
-        .eq("id", id)
-        .eq("published", true)
-        .single();
-      if (response.error) throw response.error;
-      data = normalizeNewsImage(response.data);
-    } catch {
-      try {
-        const response = await window.supabaseClient
-          .from("posts")
-          .select("id,title,content,image_url,published,created_at,source_url,url,sourceUrl,category")
-          .eq("id", id)
-          .eq("published", true)
-          .single();
-        if (response.error) throw response.error;
-        data = normalizeNewsImage(response.data);
-      } catch {
+    const selectOptions = [
+      "id,slug,title,content,image_url,imageUrl,image,urlToImage,thumbnail,urlToImageLarge,sourceImage,published,created_at,source_url,url,sourceUrl,category",
+      "id,slug,title,content,image_url,published,created_at,source_url,url,sourceUrl,category",
+      "id,slug,title,content,imageUrl,published,created_at,source_url,url,sourceUrl,category",
+      "id,title,content,image_url,published,created_at,source_url,url,sourceUrl,category"
+    ];
+    const matchFields = ["id", "slug"];
+
+    for (const select of selectOptions) {
+      for (const field of matchFields) {
         try {
           const response = await window.supabaseClient
             .from("posts")
-            .select("id,title,content,imageUrl,published,created_at,source_url,url,sourceUrl,category")
-            .eq("id", id)
+            .select(select)
+            .eq(field, id)
             .eq("published", true)
-            .single();
-          if (response.error) throw response.error;
-          data = normalizeNewsImage(response.data);
-        } catch {
-          data = null;
+            .maybeSingle();
+
+          console.log("[TechPulse detail] Supabase query:", { field, id, data: response.data, error: response.error });
+
+          if (response.error) continue;
+          if (response.data) {
+            data = normalizeNewsImage(response.data);
+            break;
+          }
+        } catch (error) {
+          console.log("[TechPulse detail] Query exception:", { field, id, error });
         }
       }
+      if (data) break;
     }
   }
 
   if (!data) {
-    const localNews = await fetchLocalNews();
-    data = localNews.find((item) => String(item.id) === String(id));
+    const localNews = await fetchRawLocalNews();
+    data = localNews.find((item) => String(item.id) === String(id) || String(item.slug || "") === String(id));
+    console.log("[TechPulse detail] Local fallback sonucu:", data || null);
   }
 
-  if (!data || !isTurkishNews(data)) throw new Error("Turkish article not found.");
+  if (!data) throw new Error("Article not found.");
+  console.log("[TechPulse detail] Render edilecek haber:", data);
   return data;
 }
 
@@ -452,10 +469,14 @@ function normalizeNewsImage(article) {
 }
 
 async function fetchLocalNews() {
+  return onlyTurkishNews(await fetchRawLocalNews());
+}
+
+async function fetchRawLocalNews() {
   const response = await fetch("data/news.json", { cache: "no-store" });
   if (!response.ok) throw new Error("Local news fallback failed.");
   const data = await response.json();
-  return onlyTurkishNews((Array.isArray(data) ? data : []).map(normalizeLocalArticle));
+  return (Array.isArray(data) ? data : []).map(normalizeLocalArticle);
 }
 
 function renderAllNewsSurfaces() {
@@ -506,7 +527,7 @@ async function loadNews() {
 function renderOtherNews(currentId) {
   const container = document.getElementById("relatedNews");
   if (!container) return;
-  const items = onlyTurkishNews(allPublishedNews).filter((article) => String(article.id) !== String(currentId)).slice(0, 3);
+  const items = onlyTurkishNews(allPublishedNews).filter((article) => String(article.id) !== String(currentId) && String(article.slug || "") !== String(currentId)).slice(0, 3);
   container.innerHTML = items.map(articleCard).join("") || `<div class="empty-state">Diğer Türkçe haberler bulunamadı.</div>`;
 }
 
@@ -514,6 +535,7 @@ async function loadSingleNews() {
   const container = document.querySelector("[data-news-detail]");
   if (!container) return;
   const id = new URLSearchParams(window.location.search).get("id");
+  console.log("[TechPulse detail] URL search:", window.location.search);
   if (!id) {
     renderStatus(container, "Haber bulunamadı", "Eksik haber id değeri.", "error");
     return;
@@ -538,8 +560,9 @@ async function loadSingleNews() {
     allPublishedNews = window.supabaseClient ? onlyTurkishNews(await fetchPublishedPosts()) : await fetchLocalNews();
     if (!allPublishedNews.length) allPublishedNews = await fetchLocalNews();
     renderOtherNews(id);
-  } catch {
-    renderStatus(container, "Haber yüklenemedi", "Haber Türkçe olmayabilir, yayında olmayabilir veya bağlantı sorunu oluştu.", "error");
+  } catch (error) {
+    console.log("[TechPulse detail] Render hatası:", error);
+    renderStatus(container, "Haber bulunamadı", "Bu haber yayından kaldırılmış olabilir. Ana sayfadaki güncel haberlerden devam edebilirsin.", "error");
   }
 }
 
