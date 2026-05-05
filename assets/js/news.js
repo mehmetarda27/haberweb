@@ -171,8 +171,7 @@ function imageMarkup(article, className = "") {
 }
 
 function articleHref(article) {
-  const id = article.slug || article.id || article.title || "";
-  return `haber.html?id=${encodeURIComponent(id)}`;
+  return `haber.html?id=${encodeURIComponent(article.id || "")}`;
 }
 
 function getSourceUrl(article) {
@@ -371,81 +370,63 @@ function renderTags() {
   `).join("");
 }
 
-async function fetchPosts(select = "id,slug,title,content,image_url,source_url,category,created_at") {
+async function fetchPosts() {
   if (!window.supabaseClient) throw new Error("Supabase client is not initialized.");
   const { data, error } = await window.supabaseClient
     .from("posts")
-    .select(select)
+    .select("id,title,content,image_url,created_at")
     .order("created_at", { ascending: false });
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
+
+  if (error) {
+    console.error("Supabase fetchPosts error:", error);
+    throw error;
+  }
+
+  return Array.isArray(data) ? data.map(normalizeNewsImage) : [];
 }
 
 async function fetchPublishedPosts() {
-  const posts = await fetchPosts("id,slug,title,content,image_url,source_url,category,created_at");
-  return posts.map(normalizeNewsImage);
+  return fetchPosts();
 }
 
 async function fetchPostById(id) {
-  let data = null;
   console.log("[TechPulse detail] Gelen id:", id);
+
   if (window.supabaseClient) {
-    const select = "id,slug,title,content,image_url,source_url,category,created_at";
-    const looksLikeDbId = /^\d+$/.test(String(id)) || /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(id));
+    const { data, error } = await window.supabaseClient
+      .from("posts")
+      .select("id,title,content,image_url,created_at")
+      .eq("id", id)
+      .maybeSingle();
 
-    try {
-      const response = await window.supabaseClient
-        .from("posts")
-        .select(select)
-        .eq("slug", id)
-        .maybeSingle();
+    console.log("[TechPulse detail] Supabase result:", { data, error });
 
-      console.log("[TechPulse detail] Supabase slug query:", { id, data: response.data, error: response.error });
-
-      if (response.error) {
-        console.error("Supabase error:", response.error);
-      } else if (response.data) {
-        data = normalizeNewsImage(response.data);
-      }
-    } catch (error) {
-      console.log("[TechPulse detail] Slug query exception:", { id, error });
-    }
-
-    if (!data && looksLikeDbId) {
-      try {
-        const response = await window.supabaseClient
-          .from("posts")
-          .select(select)
-          .eq("id", id)
-          .maybeSingle();
-
-        console.log("[TechPulse detail] Supabase id query:", { id, data: response.data, error: response.error });
-
-        if (response.error) {
-          console.error("Supabase error:", response.error);
-        } else if (response.data) {
-          data = normalizeNewsImage(response.data);
-        }
-      } catch (error) {
-        console.log("[TechPulse detail] Id query exception:", { id, error });
-      }
-    } else if (!data) {
-      console.log("[TechPulse detail] Değer slug gibi görünüyor, id kolonunda aranmadı:", id);
+    if (error) {
+      console.error("Supabase detail error:", error);
+      console.log("[TechPulse detail] Supabase hata verdi, yerel arşiv fallback deneniyor:", id);
+    } else if (data) {
+      return normalizeNewsImage(data);
     }
   }
 
-  if (!data) {
-    const localNews = await fetchRawLocalNews();
-    data = localNews.find((item) => String(item.id) === String(id) || String(item.slug || "") === String(id));
-    console.log("[TechPulse detail] Local fallback sonucu:", data || null);
-  }
+  const localNews = await fetchRawLocalNews();
+  const local = localNews.find((item) => articleMatchesId(item, id));
+  console.log("[TechPulse detail] Local fallback sonucu:", local || null);
+  if (local) return local;
 
-  if (!data) {
-    console.log("Haber bulunamadı, id:", id);
-    throw new Error("Article not found.");
-  }
-  console.log("[TechPulse detail] Render edilecek haber:", data);
-  return data;
+  console.log("Haber bulunamadı, id:", id);
+  throw new Error("Article not found.");
+}
+
+function normalizeArticleLookupId(value) {
+  return String(value || "").trim().toLocaleLowerCase("tr-TR").replace("-modern-", "-modem-");
+}
+
+function articleMatchesId(article, id) {
+  const lookupId = normalizeArticleLookupId(id);
+  return [article.id, article.slug, article.title]
+    .filter(Boolean)
+    .some((value) => normalizeArticleLookupId(value) === lookupId);
 }
 
 function normalizeLocalArticle(article) {
