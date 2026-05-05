@@ -1,5 +1,7 @@
 const MAX_NEWS_PER_RUN = 50;
 const NEWS_API_ENDPOINT = "https://newsapi.org/v2/top-headlines";
+// External cron target, every 2 hours:
+// https://haberweb.vercel.app/api/import-news?secret=IMPORT_SECRET
 const TURKISH_SIGNAL_PATTERN = /[\u00e7\u011f\u0131\u00f6\u015f\u00fc\u00c7\u011e\u0130\u00d6\u015e\u00dc]|\b(ve|ile|i\u00e7in|bir|son|yeni|g\u00fcn|sonra|\u00f6nce|t\u00fcrkiye|ankara|istanbul|izmir|haber|a\u00e7\u0131kland\u0131|geldi|oldu|var|yok|en|bu|\u015fu|g\u00f6re|karar|ba\u015fkan|bakan|d\u00fcnya|ekonomi|spor|teknoloji)\b/i;
 const ENGLISH_SIGNAL_PATTERN = /\b(the|and|with|after|before|from|over|under|into|about|this|that|will|could|would|says|said|new|latest|breaking|report|update)\b/i;
 
@@ -72,12 +74,18 @@ async function fetchNews(newsApiKey) {
     throw new Error(payload?.message || `News API failed with status ${response.status}`);
   }
 
-  const articles = Array.isArray(payload?.articles) ? payload.articles : [];
-  return articles
+  const rawArticles = Array.isArray(payload?.articles) ? payload.articles.slice(0, MAX_NEWS_PER_RUN) : [];
+  const articles = rawArticles
     .map(normalizeArticle)
     .filter((article) => article.title && article.content)
     .filter((article) => isLikelyTurkishTitle(article.title))
     .slice(0, MAX_NEWS_PER_RUN);
+
+  return {
+    articles,
+    fetched: rawArticles.length,
+    skipped: Math.max(0, rawArticles.length - articles.length)
+  };
 }
 
 async function supabaseRequest(path, options = {}) {
@@ -185,7 +193,7 @@ export default async function handler(req, res) {
     }
 
     const newsApiKey = requiredEnv("NEWS_API_KEY");
-    const articles = await fetchNews(newsApiKey);
+    const { articles, fetched, skipped } = await fetchNews(newsApiKey);
     let inserted = 0;
     let duplicates = 0;
     let includeSourceUrl = true;
@@ -228,9 +236,11 @@ export default async function handler(req, res) {
 
     return sendJson(res, 200, {
       ok: true,
-      fetched: articles.length,
+      fetched,
       inserted,
-      duplicates
+      duplicates,
+      skipped,
+      total: articles.length
     });
   } catch (error) {
     console.error("TechPulse import-news failed:", error);

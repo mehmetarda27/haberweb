@@ -1,9 +1,11 @@
-const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1600&q=85";
-const TOPIC_FILTERS = ["Tümü", "Yapay Zeka", "Siber Güvenlik", "Donanım", "Mobil", "Oyun"];
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1600&q=85";
+const CATEGORIES = ["Tümü", "Gündem", "Ekonomi", "Spor", "Teknoloji", "Sağlık", "Dünya", "Magazin"];
 
 let allPublishedNews = [];
 let activeSearch = "";
-let activeTopic = "Tümü";
+let activeCategory = "Tümü";
+let activeSlide = 0;
+let slideTimer = null;
 
 function escapeHTML(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
@@ -25,19 +27,20 @@ function formatDate(value) {
   return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
-function shortContent(value, length = 150) {
+function shortContent(value, length = 170) {
   const text = stripHTML(value);
   return text.length > length ? `${text.slice(0, length).trim()}...` : text;
 }
 
-function getArticleTopic(article) {
-  const haystack = `${article.title || ""} ${article.content || ""}`.toLocaleLowerCase("tr-TR");
-  if (haystack.includes("yapay zeka") || haystack.includes("ai")) return "Yapay Zeka";
-  if (haystack.includes("siber") || haystack.includes("güvenlik")) return "Siber Güvenlik";
-  if (haystack.includes("donanım") || haystack.includes("çip") || haystack.includes("gpu")) return "Donanım";
-  if (haystack.includes("mobil") || haystack.includes("telefon")) return "Mobil";
-  if (haystack.includes("oyun") || haystack.includes("gaming")) return "Oyun";
-  return "Teknoloji";
+function getCategory(article) {
+  const text = `${article.title || ""} ${article.content || ""}`.toLocaleLowerCase("tr-TR");
+  if (/(dolar|euro|altın|ekonomi|borsa|faiz|piyasa|kur|enflasyon|merkez bankası)/i.test(text)) return "Ekonomi";
+  if (/(maç|spor|futbol|basketbol|voleybol|lig|gol|takım|transfer)/i.test(text)) return "Spor";
+  if (/(teknoloji|yapay zeka|telefon|yazılım|donanım|robot|uygulama|siber|bilim)/i.test(text)) return "Teknoloji";
+  if (/(sağlık|hastane|doktor|ilaç|tedavi|hasta|bakanlığı)/i.test(text)) return "Sağlık";
+  if (/(dünya|abd|avrupa|rusya|ukrayna|çin|almanya|fransa|nato|bm)/i.test(text)) return "Dünya";
+  if (/(ünlü|magazin|sanatçı|oyuncu|konser|dizi|film|şarkıcı)/i.test(text)) return "Magazin";
+  return "Gündem";
 }
 
 function articleImage(article) {
@@ -48,196 +51,247 @@ function articleHref(article) {
   return `haber.html?id=${encodeURIComponent(article.id)}`;
 }
 
+function getSourceUrl(article) {
+  const match = String(article.content || "").match(/https?:\/\/\S+/);
+  return match ? match[0].replace(/[).,;]+$/, "") : "";
+}
+
+function getFilteredNews() {
+  const search = activeSearch.toLocaleLowerCase("tr-TR").trim();
+  return allPublishedNews.filter((article) => {
+    const category = getCategory(article);
+    const categoryMatch = activeCategory === "Tümü" || category === activeCategory;
+    const haystack = `${article.title || ""} ${article.content || ""}`.toLocaleLowerCase("tr-TR");
+    return categoryMatch && (!search || haystack.includes(search));
+  });
+}
+
+function renderStatus(container, title, text, state = "info") {
+  container.innerHTML = `
+    <div class="empty-state ${state === "error" ? "is-error" : ""}">
+      <strong>${escapeHTML(title)}</strong>
+      <span>${escapeHTML(text)}</span>
+    </div>
+  `;
+}
+
+function renderSkeleton() {
+  const grid = document.querySelector("[data-news-list]");
+  if (!grid) return;
+  grid.innerHTML = Array.from({ length: 6 }, () => `
+    <article class="news-card skeleton-card">
+      <div class="skeleton-media"></div>
+      <div class="card-body">
+        <div class="skeleton-line short"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+      </div>
+    </article>
+  `).join("");
+}
+
+function renderCategoryFilters() {
+  const container = document.getElementById("categoryFilters");
+  if (!container) return;
+  container.innerHTML = CATEGORIES.map((category) => `
+    <button class="category-button ${category === activeCategory ? "is-active" : ""}" type="button" data-category="${escapeHTML(category)}">${escapeHTML(category)}</button>
+  `).join("");
+}
+
 function articleCard(article) {
-  const topic = getArticleTopic(article);
+  const category = getCategory(article);
   return `
-    <article class="news-card" data-topic="${escapeHTML(topic)}">
+    <article class="news-card" data-category="${escapeHTML(category)}">
       <a href="${articleHref(article)}" aria-label="${escapeHTML(article.title || "Haberi oku")}">
         <img src="${escapeHTML(articleImage(article))}" alt="${escapeHTML(article.title || "Haber görseli")}" loading="lazy" />
       </a>
-      <div class="card-body news-card-body">
-        <div class="meta-line"><span>${escapeHTML(topic)}</span><span>${formatDate(article.created_at)}</span></div>
+      <div class="card-body">
+        <div class="meta-line"><span>${escapeHTML(category)}</span><span>${formatDate(article.created_at)}</span></div>
         <h3><a href="${articleHref(article)}">${escapeHTML(article.title || "Başlıksız Haber")}</a></h3>
         <p>${escapeHTML(shortContent(article.content))}</p>
         <div class="card-footer">
           <span>Yayında</span>
-          <a href="${articleHref(article)}" class="read-button btn">Haberi Oku</a>
+          <a href="${articleHref(article)}" class="read-button">Oku</a>
         </div>
       </div>
     </article>
   `;
 }
 
-function getFilteredNews() {
-  const search = activeSearch.toLocaleLowerCase("tr-TR").trim();
-  return allPublishedNews.filter((article) => {
-    const topic = getArticleTopic(article);
-    const topicMatch = activeTopic === "Tümü" || topic === activeTopic;
-    const haystack = `${article.title || ""} ${article.content || ""}`.toLocaleLowerCase("tr-TR");
-    return topicMatch && (!search || haystack.includes(search));
-  });
+function renderNewsList() {
+  const container = document.querySelector("[data-news-list]");
+  if (!container) return;
+  const items = getFilteredNews();
+  const resultMeta = document.getElementById("resultMeta");
+  if (resultMeta) resultMeta.textContent = `${items.length.toLocaleString("tr-TR")} haber`;
+
+  if (!items.length) {
+    renderStatus(container, "Haber bulunamadı", "Arama veya kategori filtresini değiştirerek tekrar dene.");
+    return;
+  }
+
+  container.innerHTML = items.map(articleCard).join("");
 }
 
-function renderStatus(container, message, state = "info") {
-  container.innerHTML = `<div class="empty-state ${state === "error" ? "is-error" : ""}">${escapeHTML(message)}</div>`;
+function renderBreakingBand() {
+  const container = document.getElementById("breakingTrack");
+  if (!container) return;
+  const items = allPublishedNews.slice(0, 10);
+  container.innerHTML = items.map((article) => `
+    <a href="${articleHref(article)}"><b>${escapeHTML(getCategory(article))}</b>${escapeHTML(article.title || "Başlıksız haber")}</a>
+  `).join("");
+}
+
+function renderSlider() {
+  const container = document.getElementById("headlineSlider");
+  if (!container) return;
+  const items = allPublishedNews.slice(0, 5);
+  if (!items.length) {
+    renderStatus(container, "Öne çıkan haber yok", "Yayınlanmış haberler geldiğinde slider burada görünecek.");
+    return;
+  }
+  activeSlide = Math.min(activeSlide, items.length - 1);
+  container.innerHTML = items.map((article, index) => `
+    <a class="headline-slide ${index === activeSlide ? "is-active" : ""}" href="${articleHref(article)}" aria-label="${escapeHTML(article.title)}">
+      <img src="${escapeHTML(articleImage(article))}" alt="${escapeHTML(article.title || "Haber görseli")}" />
+      <span class="slide-shade"></span>
+      <span class="slide-copy">
+        <span class="meta-line"><span>${escapeHTML(getCategory(article))}</span><span>${formatDate(article.created_at)}</span></span>
+        <strong>${escapeHTML(article.title || "Başlıksız Haber")}</strong>
+        <small>${escapeHTML(shortContent(article.content, 135))}</small>
+      </span>
+    </a>
+  `).join("");
+}
+
+function moveSlide(direction) {
+  const count = Math.min(allPublishedNews.length, 5);
+  if (!count) return;
+  activeSlide = (activeSlide + direction + count) % count;
+  renderSlider();
+}
+
+function startSlider() {
+  if (slideTimer) clearInterval(slideTimer);
+  slideTimer = setInterval(() => moveSlide(1), 5500);
 }
 
 function renderFeatured() {
   const container = document.getElementById("featuredNews");
   if (!container) return;
-
   const article = allPublishedNews[0];
   if (!article) {
-    renderStatus(container, "Öne çıkan haber için yayında içerik yok.");
+    renderStatus(container, "Manşet bekleniyor", "Yayınlanmış haber bulunamadı.");
     return;
   }
-
   container.innerHTML = `
-    <a href="${articleHref(article)}" aria-label="${escapeHTML(article.title || "Öne çıkan haberi oku")}">
+    <a href="${articleHref(article)}">
       <img src="${escapeHTML(articleImage(article))}" alt="${escapeHTML(article.title || "Haber görseli")}" />
       <div class="featured-overlay"></div>
       <div class="featured-content">
-        <div class="meta-line"><span>${escapeHTML(getArticleTopic(article))}</span><span>${formatDate(article.created_at)}</span></div>
+        <div class="meta-line"><span>${escapeHTML(getCategory(article))}</span><span>${formatDate(article.created_at)}</span></div>
         <h2>${escapeHTML(article.title || "Başlıksız Haber")}</h2>
-        <p>${escapeHTML(shortContent(article.content, 210))}</p>
+        <p>${escapeHTML(shortContent(article.content, 230))}</p>
         <span class="read-button">Haberi oku</span>
       </div>
     </a>
   `;
 }
 
-function renderTopicFilters() {
-  const container = document.getElementById("categoryFilters");
-  if (!container) return;
-
-  container.innerHTML = TOPIC_FILTERS.map((topic) => `
-    <button class="category-button ${topic === activeTopic ? "is-active" : ""}" type="button" data-topic-filter="${escapeHTML(topic)}">${escapeHTML(topic)}</button>
-  `).join("");
-}
-
 function renderPopular() {
   const container = document.getElementById("popularList");
   if (!container) return;
-
-  const items = allPublishedNews.slice(0, 5);
+  const items = allPublishedNews.slice(0, 6);
   container.innerHTML = items.map((article, index) => `
     <a class="popular-item" href="${articleHref(article)}">
       <span class="popular-rank">${index + 1}</span>
-      <span><b>${escapeHTML(article.title || "Başlıksız Haber")}</b><span>${formatDate(article.created_at)} · ${escapeHTML(getArticleTopic(article))}</span></span>
+      <span><b>${escapeHTML(article.title || "Başlıksız Haber")}</b><span>${formatDate(article.created_at)} · ${escapeHTML(getCategory(article))}</span></span>
     </a>
-  `).join("") || `<div class="empty-state">Henüz editör seçkisi yok.</div>`;
+  `).join("") || `<div class="empty-state">Henüz haber yok.</div>`;
 }
 
 function renderTags() {
   const container = document.getElementById("tagCloud");
   if (!container) return;
-
-  const availableTopics = [...new Set(allPublishedNews.map(getArticleTopic))];
-  container.innerHTML = availableTopics.map((topic) => `
-    <button class="tag-button ${topic === activeTopic ? "is-active" : ""}" type="button" data-topic-filter="${escapeHTML(topic)}">#${escapeHTML(topic)}</button>
-  `).join("") || `<div class="empty-state">Başlık verisi bekleniyor.</div>`;
+  const categories = CATEGORIES.filter((category) => category !== "Tümü");
+  container.innerHTML = categories.map((category) => `
+    <button class="tag-button ${category === activeCategory ? "is-active" : ""}" type="button" data-category="${escapeHTML(category)}">#${escapeHTML(category)}</button>
+  `).join("");
 }
 
-function renderNewsList() {
-  const container = document.querySelector("[data-news-list]");
-  if (!container) return;
-
-  const filteredNews = getFilteredNews();
-  const resultMeta = document.getElementById("resultMeta");
-  if (resultMeta) {
-    resultMeta.textContent = `${filteredNews.length.toLocaleString("tr-TR")} yayınlanmış haber`;
-  }
-
-  if (!filteredNews.length) {
-    renderStatus(container, "Bu arama veya filtreyle eşleşen yayınlanmış haber yok.");
-    return;
-  }
-
-  container.innerHTML = filteredNews.map(articleCard).join("");
+async function fetchPosts(select = "id,title,content,image_url,published,created_at") {
+  if (!window.supabaseClient) throw new Error("Supabase client is not initialized.");
+  const { data, error } = await window.supabaseClient
+    .from("posts")
+    .select(select)
+    .eq("published", true)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
 }
 
 async function loadNews() {
   const container = document.querySelector("[data-news-list]");
-  if (!container) return;
-
-  renderStatus(container, "Haberler yükleniyor...");
-
-  if (!window.supabaseClient) {
-    console.error("Supabase client is not initialized.");
-    return;
-  }
-
-  const { data, error } = await window.supabaseClient
-    .from("posts")
-    .select("id,title,content,image_url,published,created_at")
-    .eq("published", true)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error(error);
-    renderStatus(container, "Haberler yüklenirken bir hata oluştu. Lütfen Supabase publishable key ve RLS okuma izinlerini kontrol edin.", "error");
-    return;
-  }
-
-  allPublishedNews = Array.isArray(data) ? data : [];
-  if (!allPublishedNews.length) {
-    renderStatus(container, "Henüz yayınlanmış haber yok.");
+  if (container) renderSkeleton();
+  try {
+    allPublishedNews = await fetchPosts();
+    renderCategoryFilters();
+    renderBreakingBand();
+    renderSlider();
     renderFeatured();
+    renderNewsList();
     renderPopular();
     renderTags();
-    return;
+    startSlider();
+  } catch {
+    if (container) renderStatus(container, "Haberler yüklenemedi", "Bağlantı veya Supabase izinlerini kontrol et.", "error");
   }
+}
 
-  renderTopicFilters();
-  renderFeatured();
-  renderNewsList();
-  renderPopular();
-  renderTags();
+function renderOtherNews(currentId) {
+  const container = document.getElementById("relatedNews");
+  if (!container) return;
+  const items = allPublishedNews.filter((article) => String(article.id) !== String(currentId)).slice(0, 3);
+  container.innerHTML = items.map(articleCard).join("") || `<div class="empty-state">Diğer haberler bulunamadı.</div>`;
 }
 
 async function loadSingleNews() {
   const container = document.querySelector("[data-news-detail]");
   if (!container) return;
-
-  const params = new URLSearchParams(window.location.search);
-  const id = params.get("id");
-
+  const id = new URLSearchParams(window.location.search).get("id");
   if (!id) {
-    renderStatus(container, "Haber bulunamadı. Eksik haber id değeri.");
+    renderStatus(container, "Haber bulunamadı", "Eksik haber id değeri.", "error");
     return;
   }
-
-  renderStatus(container, "Haber yükleniyor...");
-
-  if (!window.supabaseClient) {
-    console.error("Supabase client is not initialized.");
-    return;
+  renderStatus(container, "Haber yükleniyor", "Detaylar hazırlanıyor.");
+  try {
+    if (!window.supabaseClient) throw new Error("Supabase client is not initialized.");
+    const { data, error } = await window.supabaseClient
+      .from("posts")
+      .select("id,title,content,image_url,published,created_at")
+      .eq("id", id)
+      .eq("published", true)
+      .single();
+    if (error) throw error;
+    const category = getCategory(data);
+    const sourceUrl = getSourceUrl(data);
+    document.title = `${data.title || "Haber"} | TechPulse`;
+    container.innerHTML = `
+      <article class="news-detail">
+        <img src="${escapeHTML(articleImage(data))}" alt="${escapeHTML(data.title || "Haber görseli")}" />
+        <div class="news-detail-body">
+          <div class="meta-line"><span>${escapeHTML(category)}</span><span>${formatDate(data.created_at)}</span></div>
+          <h1>${escapeHTML(data.title || "Başlıksız Haber")}</h1>
+          <div class="modal-content">${String(data.content || "").split(/\n+/).filter(Boolean).map((paragraph) => `<p>${escapeHTML(paragraph)}</p>`).join("")}</div>
+          ${sourceUrl ? `<a class="source-link" href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener">Kaynağı görüntüle</a>` : ""}
+        </div>
+      </article>
+    `;
+    allPublishedNews = await fetchPosts();
+    renderOtherNews(id);
+  } catch {
+    renderStatus(container, "Haber yüklenemedi", "Haber yayında olmayabilir veya bağlantı sorunu oluştu.", "error");
   }
-
-  const { data, error } = await window.supabaseClient
-    .from("posts")
-    .select("id,title,content,image_url,published,created_at")
-    .eq("id", id)
-    .eq("published", true)
-    .single();
-
-  if (error) {
-    console.error(error);
-    renderStatus(container, "Haber yüklenirken bir hata oluştu veya bu haber yayında değil.", "error");
-    return;
-  }
-
-  document.title = `${data.title || "Haber"} | TechPulse`;
-  container.innerHTML = `
-    <article class="news-detail">
-      <img src="${escapeHTML(articleImage(data))}" alt="${escapeHTML(data.title || "Haber görseli")}" />
-      <div class="news-detail-body">
-        <div class="meta-line"><span>${escapeHTML(getArticleTopic(data))}</span><span>${formatDate(data.created_at)}</span></div>
-        <h1>${escapeHTML(data.title || "Başlıksız Haber")}</h1>
-        <div class="modal-content">${String(data.content || "").split(/\n+/).filter(Boolean).map((paragraph) => `<p>${escapeHTML(paragraph)}</p>`).join("")}</div>
-      </div>
-    </article>
-  `;
 }
 
 async function saveContactMessage(event) {
@@ -245,30 +299,19 @@ async function saveContactMessage(event) {
   const form = event.target;
   const messageBox = form.querySelector("[data-form-message]");
   if (messageBox) messageBox.textContent = "Mesaj gönderiliyor...";
-
-  const message = {
-    name: form.name.value.trim(),
-    email: form.email.value.trim(),
-    message: form.message.value.trim()
-  };
-
-  if (!window.supabaseClient) {
-    console.error("Supabase client is not initialized.");
-    return;
-  }
-
-  const { error } = await window.supabaseClient
-    .from("contact_messages")
-    .insert([message]);
-
-  if (error) {
-    console.error(error);
+  try {
+    if (!window.supabaseClient) throw new Error("Supabase client is not initialized.");
+    const { error } = await window.supabaseClient.from("contact_messages").insert([{
+      name: form.name.value.trim(),
+      email: form.email.value.trim(),
+      message: form.message.value.trim()
+    }]);
+    if (error) throw error;
+    if (messageBox) messageBox.textContent = "Mesaj gönderildi. Teşekkürler.";
+    form.reset();
+  } catch {
     if (messageBox) messageBox.textContent = "Mesaj gönderilemedi. Lütfen daha sonra tekrar deneyin.";
-    return;
   }
-
-  if (messageBox) messageBox.textContent = "Mesaj gönderildi. Teşekkürler.";
-  form.reset();
 }
 
 async function saveNewsletter(event) {
@@ -276,28 +319,15 @@ async function saveNewsletter(event) {
   const form = event.target;
   const messageBox = form.querySelector("[data-form-message]");
   if (messageBox) messageBox.textContent = "Abonelik kaydediliyor...";
-
-  const subscriber = {
-    email: form.email.value.trim()
-  };
-
-  if (!window.supabaseClient) {
-    console.error("Supabase client is not initialized.");
-    return;
-  }
-
-  const { error } = await window.supabaseClient
-    .from("newsletter_subscribers")
-    .insert([subscriber]);
-
-  if (error) {
-    console.error(error);
+  try {
+    if (!window.supabaseClient) throw new Error("Supabase client is not initialized.");
+    const { error } = await window.supabaseClient.from("newsletter_subscribers").insert([{ email: form.email.value.trim() }]);
+    if (error) throw error;
+    if (messageBox) messageBox.textContent = "Abonelik kaydedildi.";
+    form.reset();
+  } catch {
     if (messageBox) messageBox.textContent = "Abonelik kaydedilemedi. E-posta adresini kontrol edip tekrar dene.";
-    return;
   }
-
-  if (messageBox) messageBox.textContent = "Abonelik kaydedildi.";
-  form.reset();
 }
 
 function bindNewsEvents() {
@@ -308,27 +338,23 @@ function bindNewsEvents() {
       renderNewsList();
     });
   }
-
   document.addEventListener("click", (event) => {
-    const filter = event.target.closest("[data-topic-filter]");
-    if (!filter) return;
-    activeTopic = filter.dataset.topicFilter || "Tümü";
-    renderTopicFilters();
-    renderNewsList();
-    renderTags();
+    const categoryButton = event.target.closest("[data-category]");
+    if (categoryButton) {
+      activeCategory = categoryButton.dataset.category || "Tümü";
+      renderCategoryFilters();
+      renderNewsList();
+      renderTags();
+    }
+    if (event.target.closest("[data-slide-prev]")) moveSlide(-1);
+    if (event.target.closest("[data-slide-next]")) moveSlide(1);
   });
-
-  document.querySelectorAll("[data-contact-form]").forEach((form) => {
-    form.addEventListener("submit", saveContactMessage);
-  });
-
-  document.querySelectorAll("[data-newsletter-form]").forEach((form) => {
-    form.addEventListener("submit", saveNewsletter);
-  });
+  document.querySelectorAll("[data-contact-form]").forEach((form) => form.addEventListener("submit", saveContactMessage));
+  document.querySelectorAll("[data-newsletter-form]").forEach((form) => form.addEventListener("submit", saveNewsletter));
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  renderTopicFilters();
+  renderCategoryFilters();
   loadNews();
   loadSingleNews();
   bindNewsEvents();

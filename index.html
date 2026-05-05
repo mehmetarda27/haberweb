@@ -3,8 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TechPulse | Premium Teknoloji Haberleri</title>
-  <meta name="description" content="TechPulse, premium dark teknoloji haberlerini Supabase üzerinden yayınlar." />
+  <title>TechPulse | Türkiye'den Son Dakika Haberleri</title>
+  <meta name="description" content="TechPulse; gündem, ekonomi, spor, teknoloji, sağlık, dünya ve magazin başlıklarında güncel Türkiye haberlerini sunar." />
+  <link rel="canonical" href="https://haberweb.vercel.app/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="TechPulse | Türkiye'den Son Dakika Haberleri" />
+  <meta property="og:description" content="Modern, hızlı ve mobil uyumlu Türkiye haber platformu." />
+  <meta property="og:url" content="https://haberweb.vercel.app/" />
+  <meta property="og:image" content="https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="TechPulse | Türkiye'den Son Dakika Haberleri" />
+  <meta name="twitter:description" content="Gündemden teknolojiye güncel haberler." />
+  <meta name="twitter:image" content="https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80" />
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "NewsMediaOrganization",
+      "name": "TechPulse",
+      "url": "https://haberweb.vercel.app/",
+      "logo": "https://haberweb.vercel.app/favicon.ico"
+    }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -18,9 +37,9 @@
     </a>
     <nav class="main-nav" aria-label="Ana navigasyon">
       <a href="#top" class="nav-link is-active">Gündem</a>
-      <a href="#latest" class="nav-link">Son Haberler</a>
+      <a href="#breaking" class="nav-link">Son Dakika</a>
+      <a href="#latest" class="nav-link">Haberler</a>
       <a href="contact.html" class="nav-link">İletişim</a>
-      <a href="admin.html" class="nav-link">Admin</a>
     </nav>
     <label class="search-shell" aria-label="Haber ara">
       <span>⌕</span>
@@ -29,14 +48,41 @@
   </header>
 
   <main id="top" class="page-shell container">
+    <section class="breaking-band" id="breaking" aria-label="Son dakika haberleri">
+      <strong>Son Dakika</strong>
+      <div id="breakingTrack" class="breaking-track" aria-live="polite"></div>
+    </section>
+
     <section class="hero-section hero">
       <div class="hero-copy">
-        <span class="eyebrow">Premium teknoloji medyası</span>
-        <h1 class="hero-title"><span class="hero-line">Teknoloji</span><span class="hero-line">gündeminin</span><span class="hero-line">nabzı burada</span><span class="hero-line">atıyor.</span></h1>
-        <p>Yapay zekadan siber güvenliğe, mobil dünyadan donanıma kadar günün kritik gelişmeleri canlı Supabase verisiyle yayınlanır.</p>
+        <span class="eyebrow">Türkiye gündemi canlı</span>
+        <h1 class="hero-title"><span class="hero-line">Günün</span><span class="hero-line">en önemli</span><span class="hero-line">haberleri.</span></h1>
+        <p>Gündem, ekonomi, spor, teknoloji, sağlık, dünya ve magazin başlıklarını hızlı, sade ve güvenilir bir haber deneyimiyle takip et.</p>
         <div id="categoryFilters" class="category-strip" aria-label="Kategori filtreleri"></div>
       </div>
+      <section class="headline-shell" aria-label="Öne çıkan haber sliderı">
+        <div id="headlineSlider" class="headline-slider" aria-live="polite"></div>
+        <div class="slider-controls" aria-label="Slider kontrolleri">
+          <button type="button" data-slide-prev aria-label="Önceki haber">‹</button>
+          <button type="button" data-slide-next aria-label="Sonraki haber">›</button>
+        </div>
+      </section>
+    </section>
+
+    <section class="featured-layout">
       <article id="featuredNews" class="featured-story hero-featured featured-card" aria-live="polite"></article>
+      <aside class="category-panel">
+        <span class="eyebrow">Kategoriler</span>
+        <div class="category-cards">
+          <button type="button" data-category="Gündem">Gündem</button>
+          <button type="button" data-category="Ekonomi">Ekonomi</button>
+          <button type="button" data-category="Spor">Spor</button>
+          <button type="button" data-category="Teknoloji">Teknoloji</button>
+          <button type="button" data-category="Sağlık">Sağlık</button>
+          <button type="button" data-category="Dünya">Dünya</button>
+          <button type="button" data-category="Magazin">Magazin</button>
+        </div>
+      </aside>
     </section>
 
     <section class="content-layout">
@@ -44,7 +90,7 @@
         <div class="section-heading" id="latest">
           <div>
             <span class="eyebrow">Son Haberler</span>
-            <h2>Vitrindeki gelişmeler</h2>
+            <h2>Güncel akış</h2>
           </div>
           <p id="resultMeta">Yayındaki haberler</p>
         </div>
@@ -53,21 +99,15 @@
 
       <aside class="sidebar">
         <section class="side-panel">
-          <div class="panel-title">
-            <h3>Editörün Seçtikleri</h3>
-          </div>
+          <div class="panel-title"><h3>Çok Okunanlar</h3></div>
           <div id="popularList" class="popular-list"></div>
         </section>
         <section class="side-panel">
-          <div class="panel-title">
-            <h3>Teknoloji Başlıkları</h3>
-          </div>
+          <div class="panel-title"><h3>Hızlı Başlıklar</h3></div>
           <div id="tagCloud" class="tag-cloud"></div>
         </section>
         <section class="side-panel newsletter-panel">
-          <div class="panel-title">
-            <h3>Bültene Katıl</h3>
-          </div>
+          <div class="panel-title"><h3>Bültene Katıl</h3></div>
           <form class="stack-form" data-newsletter-form>
             <input name="email" type="email" placeholder="E-posta adresin" autocomplete="email" required />
             <button class="primary-button" type="submit">Abone Ol</button>
@@ -80,7 +120,7 @@
 
   <footer class="site-footer container">
     <strong>TechPulse</strong>
-    <span>Supabase bağlantılı premium teknoloji haber platformu.</span>
+    <span>Türkiye haberleri, Supabase destekli hızlı yayın akışı.</span>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

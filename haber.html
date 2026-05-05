@@ -3,8 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Haber | TechPulse</title>
-  <meta name="description" content="TechPulse haber detayı." />
+  <title>Haber Detayı | TechPulse</title>
+  <meta name="description" content="TechPulse haber detay sayfası; başlık, görsel, tarih, kategori ve kaynak bilgisiyle güncel haber okuma deneyimi." />
+  <link rel="canonical" href="https://haberweb.vercel.app/haber.html" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Haber Detayı | TechPulse" />
+  <meta property="og:description" content="TechPulse üzerinden güncel haber detayını oku." />
+  <meta property="og:url" content="https://haberweb.vercel.app/haber.html" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "TechPulse",
+      "url": "https://haberweb.vercel.app/"
+    }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -18,20 +32,29 @@
     </a>
     <nav class="main-nav" aria-label="Ana navigasyon">
       <a href="index.html" class="nav-link">Gündem</a>
-      <a href="index.html#latest" class="nav-link">Son Haberler</a>
+      <a href="index.html#breaking" class="nav-link">Son Dakika</a>
+      <a href="index.html#latest" class="nav-link">Haberler</a>
       <a href="contact.html" class="nav-link">İletişim</a>
-      <a href="admin.html" class="nav-link">Admin</a>
     </nav>
   </header>
 
   <main class="page-shell detail-shell container">
     <a class="ghost-button back-link" href="index.html">← Haberlere dön</a>
     <div data-news-detail aria-live="polite"></div>
+    <section class="related-section" aria-label="Diğer haberler">
+      <div class="section-heading compact">
+        <div>
+          <span class="eyebrow">Devam Et</span>
+          <h2>Diğer haberler</h2>
+        </div>
+      </div>
+      <div id="relatedNews" class="news-grid"></div>
+    </section>
   </main>
 
   <footer class="site-footer container">
     <strong>TechPulse</strong>
-    <span>Supabase bağlantılı haber detayı.</span>
+    <span>Haber detayları Supabase üzerinden yayınlanır.</span>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

@@ -12,8 +12,10 @@
 </head>
 <body data-page="admin">
   <script>
+    // Bu geçici basit korumadır; gerçek yetkilendirme yerine geçmez.
+    const ADMIN_PASSWORD = "12345";
     const pass = prompt("Admin şifre");
-    if (pass !== "12345") {
+    if (pass !== ADMIN_PASSWORD) {
       document.body.innerHTML = "Erişim reddedildi";
     }
   </script>
@@ -94,7 +96,7 @@
   </div>
 
   <script>
-    if (pass === "12345") {
+    if (pass === ADMIN_PASSWORD) {
       const supabaseCdn = document.createElement("script");
       supabaseCdn.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
       supabaseCdn.onload = () => {
