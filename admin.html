@@ -11,6 +11,12 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body data-page="admin">
+  <script>
+    const pass = prompt("Admin şifre");
+    if (pass !== "12345") {
+      document.body.innerHTML = "Erişim reddedildi";
+    }
+  </script>
   <div class="admin-layout">
     <aside class="admin-sidebar">
       <a class="brand" href="index.html" aria-label="TechPulse ana sayfa">
@@ -87,8 +93,24 @@
     </main>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="assets/js/supabase.js"></script>
-  <script src="assets/js/admin.js"></script>
+  <script>
+    if (pass === "12345") {
+      const supabaseCdn = document.createElement("script");
+      supabaseCdn.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+      supabaseCdn.onload = () => {
+        const supabaseConfig = document.createElement("script");
+        supabaseConfig.src = "assets/js/supabase.js";
+        supabaseConfig.onload = () => {
+          const adminScript = document.createElement("script");
+          adminScript.src = "assets/js/admin.js";
+          document.body.appendChild(adminScript);
+        };
+        document.body.appendChild(supabaseConfig);
+      };
+      document.body.appendChild(supabaseCdn);
+    } else {
+      document.body.innerHTML = "Erişim reddedildi";
+    }
+  </script>
 </body>
 </html>

@@ -1,5 +1,6 @@
-const MAX_NEWS_PER_RUN = 24;
-const NEWS_API_ENDPOINT = "https://newsapi.org/v2/everything";
+const MAX_NEWS_PER_RUN = 50;
+const NEWS_API_ENDPOINT = "https://newsapi.org/v2/top-headlines";
+const TURKISH_TITLE_PATTERN = /[çğıöşüÇĞİÖŞÜ]|(\b(ve|ile|için|bir|son|yeni|gün|sonra|önce|türkiye|ankara|istanbul|izmir|haber|açıklandı|geldi|oldu|var|yok|en|bu|şu)\b)/i;
 
 function sendJson(res, statusCode, payload) {
   return res.status(statusCode).json(payload);
@@ -8,7 +9,9 @@ function sendJson(res, statusCode, payload) {
 function requiredEnv(name) {
   const value = process.env[name];
   if (!value) {
-    throw new Error(`Missing environment variable: ${name}`);
+    throw new Error(
+      `Missing environment variable: ${name}. Add it in Vercel Project Settings > Environment Variables for Production, then redeploy.`
+    );
   }
   return value;
 }
@@ -46,11 +49,13 @@ function normalizeArticle(article) {
   };
 }
 
+function isLikelyTurkishTitle(title) {
+  return TURKISH_TITLE_PATTERN.test(normalizeText(title).toLocaleLowerCase("tr-TR"));
+}
+
 async function fetchNews(newsApiKey) {
   const params = new URLSearchParams({
-    q: "technology OR artificial intelligence OR cybersecurity OR mobile OR hardware",
-    language: "en",
-    sortBy: "publishedAt",
+    country: "tr",
     pageSize: String(MAX_NEWS_PER_RUN),
     apiKey: newsApiKey
   });
@@ -67,6 +72,7 @@ async function fetchNews(newsApiKey) {
   return articles
     .map(normalizeArticle)
     .filter((article) => article.title && article.content)
+    .filter((article) => isLikelyTurkishTitle(article.title))
     .slice(0, MAX_NEWS_PER_RUN);
 }
 
