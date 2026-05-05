@@ -140,14 +140,29 @@ function getCategory(article) {
 }
 
 function articleImage(article) {
-  return article.imageUrl || FALLBACK_IMAGE;
+  return normalizeImageUrl(article) || fallbackImageForArticle(article);
 }
 
 function normalizeImageUrl(article) {
-  return article.imageUrl || "";
+  return normalizeText(article.image_url || article.imageUrl || article.urlToImage || article.image || article.thumbnail || article.sourceImage || article.urlToImageLarge);
 }
 
 function fallbackImageForArticle(article) {
+  return categoryFallbackImageForArticle(article) || picsumImageForArticle(article);
+}
+
+function categoryFallbackImageForArticle(article) {
+  const category = getCategory(article);
+  const normalizedCategory = normalizeText(category).toLocaleLowerCase("tr-TR");
+  if (normalizedCategory.includes("yapay")) return "assets/news/ai.svg";
+  if (normalizedCategory.includes("oyun")) return "assets/news/game.svg";
+  if (normalizedCategory.includes("mobil")) return "assets/news/mobile.svg";
+  if (normalizedCategory.includes("siber")) return "assets/news/cyber.svg";
+  if (normalizedCategory.includes("donan")) return "assets/news/hardware.svg";
+  return "assets/news/tech.svg";
+}
+
+function legacyFallbackImageForArticle(article) {
   const category = getCategory(article);
   const byCategory = {
     "Yapay Zeka": "assets/news/tp-ai-enterprise-agents-001.svg",
@@ -162,13 +177,43 @@ function fallbackImageForArticle(article) {
   return byCategory[category] || FALLBACK_IMAGE;
 }
 
+function picsumImageForArticle(article) {
+  const seed = encodeURIComponent(article.id || article.slug || article.title || "techpulse-news");
+  return `https://picsum.photos/seed/${seed}/900/520`;
+}
+
 function imageMarkup(article, className = "") {
   const imageUrl = normalizeImageUrl(article);
-  const fallback = fallbackImageForArticle(article);
-  const src = imageUrl || fallback;
+  const localFallback = categoryFallbackImageForArticle(article);
+  const picsumFallback = picsumImageForArticle(article);
+  const src = imageUrl || localFallback || picsumFallback;
+  const nextFallback = src === localFallback ? picsumFallback : localFallback;
   const fallbackClass = imageUrl ? "" : " is-fallback-image";
-  return `<img${className ? ` class="${escapeHTML(className)}${fallbackClass}"` : ` class="${fallbackClass.trim()}"`} src="${escapeHTML(src)}" alt="${escapeHTML(article.title || "Haber görseli")}" loading="lazy" onerror="this.onerror=null;this.src='${escapeHTML(fallback)}';this.classList.add('is-fallback-image');" />`;
+  const alt = article.title || "Haber görseli";
+  const classes = className ? `${escapeHTML(className)}${fallbackClass}` : fallbackClass.trim();
+  return `<img class="${classes}" src="${escapeHTML(src)}" alt="${escapeHTML(alt)}" loading="lazy" data-fallback-src="${escapeHTML(nextFallback || "")}" data-final-src="${escapeHTML(picsumFallback)}" onerror="window.TechPulseImageFallback(this)" />`;
 }
+
+window.TechPulseImageFallback = function handleTechPulseImageFallback(img) {
+  const fallbackSrc = img.dataset.fallbackSrc;
+  const finalSrc = img.dataset.finalSrc;
+  img.classList.add("is-fallback-image");
+
+  if (fallbackSrc) {
+    img.dataset.fallbackSrc = "";
+    img.src = fallbackSrc;
+    return;
+  }
+
+  if (finalSrc) {
+    img.dataset.finalSrc = "";
+    img.src = finalSrc;
+    return;
+  }
+
+  img.onerror = null;
+  img.src = FALLBACK_IMAGE;
+};
 
 function articleHref(article) {
   return `haber.html?id=${encodeURIComponent(article.id || "")}`;
@@ -439,7 +484,7 @@ function normalizeLocalArticle(article) {
 }
 
 function normalizeNewsImage(article) {
-  const imageUrl = article.imageUrl || article.image_url || article.image || article.urlToImage || article.thumbnail || article.urlToImageLarge || article.sourceImage || "";
+  const imageUrl = normalizeImageUrl(article);
   return {
     ...article,
     imageUrl,

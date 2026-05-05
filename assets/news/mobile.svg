@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#050713"/><stop offset=".52" stop-color="#111b44"/><stop offset="1" stop-color="#172554"/></linearGradient><radialGradient id="p" cx="30%" cy="22%" r="58%"><stop stop-color="#ec4899" stop-opacity=".82"/><stop offset="1" stop-color="#ec4899" stop-opacity="0"/></radialGradient><radialGradient id="b" cx="74%" cy="34%" r="55%"><stop stop-color="#3b82f6" stop-opacity=".76"/><stop offset="1" stop-color="#3b82f6" stop-opacity="0"/></radialGradient></defs>
+  <rect width="900" height="520" fill="url(#g)"/><rect width="900" height="520" fill="url(#p)"/><rect width="900" height="520" fill="url(#b)"/>
+  <g transform="translate(360 92)" fill="none" stroke="#fff" stroke-width="14"><rect x="0" y="0" width="180" height="310" rx="34"/><path d="M62 30h56M74 276h32"/><rect x="34" y="70" width="112" height="150" rx="20" fill="#fff" fill-opacity=".08" stroke-opacity=".3"/></g>
+  <text x="48" y="444" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="52" font-weight="900">Mobil</text>
+</svg>

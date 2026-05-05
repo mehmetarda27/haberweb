@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#050713"/><stop offset=".5" stop-color="#231240"/><stop offset="1" stop-color="#111827"/></linearGradient><radialGradient id="r" cx="30%" cy="25%" r="62%"><stop stop-color="#f43f5e" stop-opacity=".82"/><stop offset="1" stop-color="#f43f5e" stop-opacity="0"/></radialGradient><radialGradient id="u" cx="78%" cy="34%" r="55%"><stop stop-color="#8b5cf6" stop-opacity=".74"/><stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/></radialGradient></defs>
+  <rect width="900" height="520" fill="url(#g)"/><rect width="900" height="520" fill="url(#r)"/><rect width="900" height="520" fill="url(#u)"/>
+  <g transform="translate(320 130)" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round"><rect x="42" y="42" width="176" height="176" rx="28"/><rect x="86" y="86" width="88" height="88" rx="16" fill="#fff" fill-opacity=".08"/><path d="M84 10v32M130 10v32M176 10v32M84 218v32M130 218v32M176 218v32M10 84h32M10 130h32M10 176h32M218 84h32M218 130h32M218 176h32"/></g>
+  <text x="48" y="444" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="52" font-weight="900">Donanım</text>
+</svg>

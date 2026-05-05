@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#090b1a"/><stop offset=".48" stop-color="#251052"/><stop offset="1" stop-color="#062238"/></linearGradient><radialGradient id="p" cx="30%" cy="25%" r="65%"><stop stop-color="#ff2d75" stop-opacity=".9"/><stop offset="1" stop-color="#ff2d75" stop-opacity="0"/></radialGradient><radialGradient id="b" cx="78%" cy="34%" r="55%"><stop stop-color="#22d3ee" stop-opacity=".82"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></radialGradient></defs>
+  <rect width="900" height="520" fill="url(#g)"/><rect width="900" height="520" fill="url(#p)"/><rect width="900" height="520" fill="url(#b)"/>
+  <g fill="none" stroke="#fff" stroke-opacity=".2"><path d="M160 365C300 245 420 405 560 260s210-40 270-122"/><path d="M120 165c150-70 280 80 430-8 120-70 190-50 270-28"/></g>
+  <g transform="translate(348 138)" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"><rect x="34" y="34" width="136" height="136" rx="34"/><path d="M102 34V6M102 198v-28M34 102H6M198 102h-28M64 34 44 14M160 34l20-20M64 170l-20 20M160 170l20 20"/><circle cx="102" cy="102" r="34" fill="#22d3ee" fill-opacity=".18"/></g>
+  <text x="48" y="444" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="52" font-weight="900">Yapay Zeka</text>
+</svg>

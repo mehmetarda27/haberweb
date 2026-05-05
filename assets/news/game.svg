@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="520" viewBox="0 0 900 520">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#070711"/><stop offset=".48" stop-color="#1b123f"/><stop offset="1" stop-color="#053224"/></linearGradient><radialGradient id="n" cx="26%" cy="26%" r="60%"><stop stop-color="#a855f7" stop-opacity=".86"/><stop offset="1" stop-color="#a855f7" stop-opacity="0"/></radialGradient><radialGradient id="m" cx="78%" cy="38%" r="60%"><stop stop-color="#22c55e" stop-opacity=".72"/><stop offset="1" stop-color="#22c55e" stop-opacity="0"/></radialGradient></defs>
+  <rect width="900" height="520" fill="url(#g)"/><rect width="900" height="520" fill="url(#n)"/><rect width="900" height="520" fill="url(#m)"/>
+  <g transform="translate(260 150)" fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"><path d="M90 80h200c48 0 88 38 98 92l12 66c6 35-31 59-58 36l-58-49H96l-58 49c-27 23-64-1-58-36l12-66c10-54 50-92 98-92Z"/><path d="M100 150h70M135 115v70"/><circle cx="276" cy="140" r="13"/><circle cx="326" cy="174" r="13"/></g>
+  <text x="48" y="444" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="52" font-weight="900">Oyun</text>
+</svg>
