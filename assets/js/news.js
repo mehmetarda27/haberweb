@@ -1,4 +1,34 @@
-const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1600&q=85";
+const FALLBACK_IMAGE = `data:image/svg+xml,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#050713"/>
+      <stop offset="0.45" stop-color="#171034"/>
+      <stop offset="1" stop-color="#041b2f"/>
+    </linearGradient>
+    <radialGradient id="pink" cx="28%" cy="28%" r="55%">
+      <stop offset="0" stop-color="#ff0f68" stop-opacity="0.78"/>
+      <stop offset="1" stop-color="#ff0f68" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="blue" cx="78%" cy="35%" r="48%">
+      <stop offset="0" stop-color="#00e5ff" stop-opacity="0.62"/>
+      <stop offset="1" stop-color="#00e5ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect width="1600" height="900" fill="url(#pink)"/>
+  <rect width="1600" height="900" fill="url(#blue)"/>
+  <path d="M120 690 C360 520 510 760 760 560 C950 408 1120 438 1480 220" fill="none" stroke="#ff0f68" stroke-width="6" stroke-opacity="0.55"/>
+  <path d="M90 250 C370 155 560 315 810 205 C1030 108 1210 140 1490 92" fill="none" stroke="#00e5ff" stroke-width="4" stroke-opacity="0.48"/>
+  <g fill="#ffffff" fill-opacity="0.08">
+    <circle cx="270" cy="190" r="86"/>
+    <circle cx="1260" cy="620" r="130"/>
+    <circle cx="940" cy="310" r="54"/>
+  </g>
+  <text x="90" y="780" fill="#fff" font-family="Inter, Arial, sans-serif" font-size="82" font-weight="900">TechPulse</text>
+  <text x="94" y="835" fill="#cbd5e1" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="700">Türkçe teknoloji gündemi</text>
+</svg>
+`)}`;
 const CATEGORIES = ["Tümü", "Teknoloji", "Yapay Zeka", "Oyun", "Donanım", "Mobil", "Siber Güvenlik", "Girişimcilik", "İnceleme"];
 const ENGLISH_WORDS = new Set(["the", "and", "with", "for", "from", "says", "after", "before", "new", "update", "report", "startup", "company", "game", "tech", "technology", "launch", "announces", "reveals", "could", "will", "is", "are", "was", "were", "has", "have", "this", "that", "you", "your", "as", "by", "on", "in", "to", "of", "at", "it", "its", "about", "over", "more", "first", "latest"]);
 const TURKISH_WORDS = new Set(["ve", "ile", "için", "bir", "son", "yeni", "gün", "sonra", "önce", "türkiye", "haber", "açıklandı", "geldi", "oldu", "var", "yok", "bu", "şu", "göre", "teknoloji", "yapay", "zeka", "oyun", "donanım", "girişim", "siber", "güvenlik", "mobil", "yerli", "kullanıcı", "şirket", "uygulama", "model", "cihaz", "pazar", "gelişme", "duyurdu", "başladı", "özellik", "özellikleri", "çıktı", "tanıttı", "artık", "daha", "olarak", "olan"]);
@@ -110,7 +140,18 @@ function getCategory(article) {
 }
 
 function articleImage(article) {
-  return article.image_url || article.image || FALLBACK_IMAGE;
+  return article.imageUrl || FALLBACK_IMAGE;
+}
+
+function normalizeImageUrl(article) {
+  return article.imageUrl || "";
+}
+
+function imageMarkup(article, className = "") {
+  const imageUrl = normalizeImageUrl(article);
+  const src = imageUrl || FALLBACK_IMAGE;
+  const fallbackClass = imageUrl ? "" : " is-fallback-image";
+  return `<img${className ? ` class="${escapeHTML(className)}${fallbackClass}"` : ` class="${fallbackClass.trim()}"`} src="${escapeHTML(src)}" alt="${escapeHTML(article.title || "Haber görseli")}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';this.classList.add('is-fallback-image');" />`;
 }
 
 function articleHref(article) {
@@ -193,7 +234,7 @@ function articleCard(article) {
   return `
     <article class="news-card" data-category="${escapeHTML(category)}">
       <a href="${articleHref(article)}" aria-label="${escapeHTML(article.title || "Haberi oku")}">
-        <img src="${escapeHTML(articleImage(article))}" alt="${escapeHTML(article.title || "Haber görseli")}" loading="lazy" />
+        ${imageMarkup(article, "card-image")}
       </a>
       <div class="card-body">
         <div class="meta-line"><span>${escapeHTML(category)}</span><span>${formatDate(article.created_at)}</span></div>
@@ -244,7 +285,7 @@ function renderSlider() {
   activeSlide = Math.min(activeSlide, items.length - 1);
   container.innerHTML = items.map((article, index) => `
     <a class="headline-slide ${index === activeSlide ? "is-active" : ""}" href="${articleHref(article)}" aria-label="${escapeHTML(article.title)}">
-      <img src="${escapeHTML(articleImage(article))}" alt="${escapeHTML(article.title || "Haber görseli")}" />
+      ${imageMarkup(article, "headline-image")}
       <span class="slide-shade"></span>
       <span class="slide-copy">
         <span class="meta-line"><span>${escapeHTML(getCategory(article))}</span><span>${formatDate(article.created_at)}</span></span>
@@ -279,7 +320,7 @@ function renderFeatured() {
   container.innerHTML = `
     <div class="featured-link">
       <a href="${articleHref(article)}" aria-label="${escapeHTML(article.title || "Manşet haberi oku")}">
-        <img src="${escapeHTML(articleImage(article))}" alt="${escapeHTML(article.title || "Haber görseli")}" />
+        ${imageMarkup(article, "featured-image")}
       </a>
       <div class="featured-overlay"></div>
       <div class="featured-content">
@@ -326,9 +367,21 @@ async function fetchPosts(select = "id,title,content,image_url,published,created
 
 async function fetchPublishedPosts() {
   try {
-    return await fetchPosts("id,title,content,image_url,published,created_at,source_url,url,sourceUrl,category");
+    const posts = await fetchPosts("id,title,content,image_url,imageUrl,image,urlToImage,thumbnail,urlToImageLarge,sourceImage,published,created_at,source_url,url,sourceUrl,category");
+    return posts.map(normalizeNewsImage);
   } catch {
-    return fetchPosts();
+    try {
+      const posts = await fetchPosts("id,title,content,image_url,published,created_at,source_url,url,sourceUrl,category");
+      return posts.map(normalizeNewsImage);
+    } catch {
+      try {
+        const posts = await fetchPosts("id,title,content,imageUrl,published,created_at,source_url,url,sourceUrl,category");
+        return posts.map(normalizeNewsImage);
+      } catch {
+        const posts = await fetchPosts("id,title,content,published,created_at,source_url,url,sourceUrl,category");
+        return posts.map(normalizeNewsImage);
+      }
+    }
   }
 }
 
@@ -336,16 +389,38 @@ async function fetchPostById(id) {
   let data = null;
   if (window.supabaseClient) {
     try {
-      const response = await window.supabaseClient
+        const response = await window.supabaseClient
         .from("posts")
-        .select("id,title,content,image_url,published,created_at,source_url,url,sourceUrl,category")
+        .select("id,title,content,image_url,imageUrl,image,urlToImage,thumbnail,urlToImageLarge,sourceImage,published,created_at,source_url,url,sourceUrl,category")
         .eq("id", id)
         .eq("published", true)
         .single();
       if (response.error) throw response.error;
-      data = response.data;
+      data = normalizeNewsImage(response.data);
     } catch {
-      data = null;
+      try {
+        const response = await window.supabaseClient
+          .from("posts")
+          .select("id,title,content,image_url,published,created_at,source_url,url,sourceUrl,category")
+          .eq("id", id)
+          .eq("published", true)
+          .single();
+        if (response.error) throw response.error;
+        data = normalizeNewsImage(response.data);
+      } catch {
+        try {
+          const response = await window.supabaseClient
+            .from("posts")
+            .select("id,title,content,imageUrl,published,created_at,source_url,url,sourceUrl,category")
+            .eq("id", id)
+            .eq("published", true)
+            .single();
+          if (response.error) throw response.error;
+          data = normalizeNewsImage(response.data);
+        } catch {
+          data = null;
+        }
+      }
     }
   }
 
@@ -359,12 +434,20 @@ async function fetchPostById(id) {
 }
 
 function normalizeLocalArticle(article) {
-  return {
+  return normalizeNewsImage({
     ...article,
-    image_url: article.image_url || article.image,
     created_at: article.created_at || article.date || new Date().toISOString(),
     content: article.content || article.excerpt || "",
     source_url: article.source_url || article.url || ""
+  });
+}
+
+function normalizeNewsImage(article) {
+  const imageUrl = article.imageUrl || article.image_url || article.image || article.urlToImage || article.thumbnail || article.urlToImageLarge || article.sourceImage || "";
+  return {
+    ...article,
+    imageUrl,
+    image_url: article.image_url || imageUrl
   };
 }
 
@@ -387,6 +470,18 @@ function renderAllNewsSurfaces() {
   startSlider();
 }
 
+function mergeNewsById(primary, secondary) {
+  const seen = new Set();
+  const result = [];
+  for (const article of [...primary, ...secondary]) {
+    const key = String(article.id || article.title || "").toLocaleLowerCase("tr-TR");
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(article);
+  }
+  return result;
+}
+
 async function loadNews() {
   const container = document.querySelector("[data-news-list]");
   if (container) renderSkeleton();
@@ -394,8 +489,8 @@ async function loadNews() {
   try {
     const remoteNews = window.supabaseClient ? await fetchPublishedPosts() : [];
     allPublishedNews = onlyTurkishNews(remoteNews);
-    if (!allPublishedNews.length) {
-      allPublishedNews = await fetchLocalNews();
+    if (allPublishedNews.length < 12) {
+      allPublishedNews = mergeNewsById(allPublishedNews, await fetchLocalNews()).slice(0, Math.max(12, allPublishedNews.length));
     }
     renderAllNewsSurfaces();
   } catch {
@@ -431,7 +526,7 @@ async function loadSingleNews() {
     document.title = `${data.title || "Haber"} | TechPulse`;
     container.innerHTML = `
       <article class="news-detail">
-        <img src="${escapeHTML(articleImage(data))}" alt="${escapeHTML(data.title || "Haber görseli")}" />
+        ${imageMarkup(data, "detail-image")}
         <div class="news-detail-body">
           <div class="meta-line"><span>${escapeHTML(category)}</span><span>${formatDate(data.created_at)}</span></div>
           <h1>${escapeHTML(data.title || "Başlıksız Haber")}</h1>

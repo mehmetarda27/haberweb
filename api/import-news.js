@@ -57,12 +57,27 @@ function getOptionalEnv(name) {
 function getSecretFromRequest(req) {
   if (req.query?.secret) return req.query.secret;
 
+  const authorization = req.headers?.authorization || req.headers?.Authorization;
+  if (authorization?.startsWith("Bearer ")) return authorization.slice("Bearer ".length).trim();
+
   try {
     const url = new URL(req.url, "https://localhost");
     return url.searchParams.get("secret");
   } catch {
     return null;
   }
+}
+
+function isAuthorizedRequest(req) {
+  const importSecret = getOptionalEnv("IMPORT_SECRET");
+  const cronSecret = getOptionalEnv("CRON_SECRET");
+  if (!importSecret && !cronSecret) return true;
+
+  const requestSecret = getSecretFromRequest(req);
+  return Boolean(
+    (importSecret && requestSecret === importSecret) ||
+    (cronSecret && requestSecret === cronSecret)
+  );
 }
 
 function normalizeText(value) {
@@ -129,13 +144,15 @@ function normalizeArticle(article) {
   const description = normalizeText(article.description || article.content);
   const url = normalizeText(article.url);
   const source = normalizeText(article.source?.name);
+  const imageUrl = normalizeText(article.urlToImage || article.image || article.imageUrl || article.thumbnail || article.urlToImageLarge || article.sourceImage);
 
   return {
     title,
     content: [description || title, source ? `Kaynak: ${source}` : "", url ? `Haber linki: ${url}` : ""]
       .filter(Boolean)
       .join("\n\n"),
-    image_url: normalizeText(article.urlToImage),
+    imageUrl,
+    image_url: imageUrl,
     source_url: url,
     country: "tr",
     language: "tr",
@@ -144,10 +161,13 @@ function normalizeArticle(article) {
 }
 
 function normalizeLocalSeedArticle(article) {
+  const imageUrl = normalizeText(article.urlToImage || article.image || article.imageUrl || article.thumbnail || article.urlToImageLarge || article.sourceImage || article.image_url);
+
   return {
     title: normalizeText(article.title),
     content: normalizeText(article.content || article.excerpt),
-    image_url: normalizeText(article.image || article.image_url),
+    imageUrl,
+    image_url: imageUrl,
     source_url: normalizeText(article.source_url || article.url),
     country: "tr",
     language: "tr",
@@ -360,13 +380,27 @@ async function sourceUrlExistsInContent(sourceUrl) {
 }
 
 async function insertPost(article, options = {}) {
-  const { includeSourceUrl = true, includeUrlFields = true, includeLocaleFields = true } = options;
+  const {
+    includeSourceUrl = true,
+    includeUrlFields = true,
+    includeLocaleFields = true,
+    includeImageUrl = true,
+    includeImageUrlSnake = true
+  } = options;
+  const imageUrl = article.imageUrl || article.image_url || null;
   const post = {
     title: article.title,
     content: article.content,
-    image_url: article.image_url,
     published: true
   };
+
+  if (includeImageUrlSnake) {
+    post.image_url = imageUrl;
+  }
+
+  if (includeImageUrl) {
+    post.imageUrl = imageUrl;
+  }
 
   if (includeSourceUrl && article.source_url) {
     post.source_url = article.source_url;
@@ -414,11 +448,81 @@ async function insertPostWithFallback(article, state) {
         continue;
       }
 
+      if (state.includeImageUrl && isMissingColumn(error, ["imageUrl"])) {
+        state.includeImageUrl = false;
+        continue;
+      }
+
+      if (state.includeImageUrlSnake && isMissingColumn(error, ["image_url"])) {
+        state.includeImageUrlSnake = false;
+        continue;
+      }
+
       throw error;
     }
   }
 
   await insertPost(article, state);
+}
+
+export async function runImportNews() {
+  const newsApiKey = getOptionalEnv("NEWS_API_KEY");
+  const { articles, fetched, skippedEnglish, skippedInvalid } = await fetchNews(newsApiKey);
+  let inserted = 0;
+  let duplicates = 0;
+  let finalSkippedEnglish = skippedEnglish;
+  const insertState = {
+    includeSourceUrl: true,
+    includeUrlFields: true,
+    includeLocaleFields: true,
+    includeImageUrl: true,
+    includeImageUrlSnake: true
+  };
+
+  for (const article of articles) {
+    if (!isTurkishNews(article)) {
+      finalSkippedEnglish += 1;
+      continue;
+    }
+
+    const duplicateByTitle = await titleExists(article.title);
+    let duplicateByUrl = false;
+
+    if (insertState.includeSourceUrl && article.source_url) {
+      try {
+        duplicateByUrl = await sourceUrlExists(article.source_url);
+      } catch (error) {
+        if (!isMissingColumn(error, ["source_url"])) throw error;
+        insertState.includeSourceUrl = false;
+        duplicateByUrl = await sourceUrlExistsInContent(article.source_url);
+      }
+    }
+
+    if (duplicateByTitle || duplicateByUrl) {
+      duplicates += 1;
+      continue;
+    }
+
+    await insertPostWithFallback(article, insertState);
+    inserted += 1;
+  }
+
+  const totalStored = await countStoredPosts();
+
+  return {
+    ok: true,
+    fetched,
+    inserted,
+    duplicates,
+    skippedEnglish: finalSkippedEnglish,
+    skippedInvalid,
+    totalStored,
+    sampleTitles: articles.slice(0, 5).map((article) => article.title)
+  };
+}
+
+export function ensureAuthorized(req) {
+  return isAuthorizedRequest(req);
 }
 
 export default async function handler(req, res) {
@@ -432,67 +536,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const expectedSecret = requiredEnv("IMPORT_SECRET");
-    const requestSecret = getSecretFromRequest(req);
-
-    if (!requestSecret || requestSecret !== expectedSecret) {
+    if (!ensureAuthorized(req)) {
       return sendJson(res, 401, {
         ok: false,
         error: "Unauthorized"
       });
     }
 
-    const newsApiKey = getOptionalEnv("NEWS_API_KEY");
-    const { articles, fetched, skippedEnglish, skippedInvalid } = await fetchNews(newsApiKey);
-    let inserted = 0;
-    let duplicates = 0;
-    let finalSkippedEnglish = skippedEnglish;
-    const insertState = {
-      includeSourceUrl: true,
-      includeUrlFields: true,
-      includeLocaleFields: true
-    };
-
-    for (const article of articles) {
-      if (!isTurkishNews(article)) {
-        finalSkippedEnglish += 1;
-        continue;
-      }
-
-      const duplicateByTitle = await titleExists(article.title);
-      let duplicateByUrl = false;
-
-      if (insertState.includeSourceUrl && article.source_url) {
-        try {
-          duplicateByUrl = await sourceUrlExists(article.source_url);
-        } catch (error) {
-          if (!isMissingColumn(error, ["source_url"])) throw error;
-          insertState.includeSourceUrl = false;
-          duplicateByUrl = await sourceUrlExistsInContent(article.source_url);
-        }
-      }
-
-      if (duplicateByTitle || duplicateByUrl) {
-        duplicates += 1;
-        continue;
-      }
-
-      await insertPostWithFallback(article, insertState);
-      inserted += 1;
-    }
-
-    const totalStored = await countStoredPosts();
-
-    return sendJson(res, 200, {
-      ok: true,
-      fetched,
-      inserted,
-      duplicates,
-      skippedEnglish: finalSkippedEnglish,
-      skippedInvalid,
-      totalStored,
-      sampleTitles: articles.slice(0, 5).map((article) => article.title)
-    });
+    return sendJson(res, 200, await runImportNews());
   } catch (error) {
     console.error("TechPulse import-news failed:", error);
     return sendJson(res, 500, {
