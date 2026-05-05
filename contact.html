@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>İletişim | TechPulse</title>
+  <meta name="description" content="TechPulse iletişim ve bülten aboneliği." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="contact">
+  <header class="site-header container">
+    <a class="brand" href="index.html" aria-label="TechPulse ana sayfa">
+      <span class="brand-mark">TP</span>
+      <span class="brand-text">TechPulse</span>
+    </a>
+    <nav class="main-nav" aria-label="Ana navigasyon">
+      <a href="index.html" class="nav-link">Gündem</a>
+      <a href="index.html#latest" class="nav-link">Son Haberler</a>
+      <a href="contact.html" class="nav-link is-active">İletişim</a>
+      <a href="admin.html" class="nav-link">Admin</a>
+    </nav>
+  </header>
+
+  <main class="page-shell container contact-shell">
+    <section class="hero-copy contact-intro">
+      <span class="eyebrow">Okur masası</span>
+      <h1 class="hero-title"><span class="hero-line">Bizimle</span><span class="hero-line">iletişime geç.</span></h1>
+      <p>Haber önerileri, iş birlikleri ve editöryal notlar için mesajını Supabase tabanlı iletişim kutusuna bırak.</p>
+    </section>
+
+    <section class="contact-grid">
+      <form class="editor-panel stack-form contact-form" data-contact-form>
+        <div class="section-heading compact">
+          <div>
+            <span class="eyebrow">İletişim</span>
+            <h2>Mesaj gönder</h2>
+          </div>
+        </div>
+        <label>Ad Soyad<input name="name" autocomplete="name" required /></label>
+        <label>E-posta<input name="email" type="email" autocomplete="email" required /></label>
+        <label>Mesaj<textarea name="message" rows="8" required></textarea></label>
+        <button class="primary-button" type="submit">Mesajı Gönder</button>
+        <p class="form-message" data-form-message></p>
+      </form>
+
+      <aside class="side-panel newsletter-panel">
+        <div class="panel-title">
+          <h3>Premium bülten</h3>
+        </div>
+        <p class="panel-copy">Haftanın teknoloji gündemini ve öne çıkan haberlerini e-posta kutuna al.</p>
+        <form class="stack-form" data-newsletter-form>
+          <input name="email" type="email" placeholder="E-posta adresin" autocomplete="email" required />
+          <button class="primary-button" type="submit">Bültene Katıl</button>
+          <p class="form-message" data-form-message></p>
+        </form>
+      </aside>
+    </section>
+  </main>
+
+  <footer class="site-footer container">
+    <strong>TechPulse</strong>
+    <span>İletişim mesajları ve bülten abonelikleri Supabase'e kaydedilir.</span>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase.js"></script>
+  <script src="assets/js/news.js"></script>
+</body>
+</html>

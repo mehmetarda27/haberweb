@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Haber | TechPulse</title>
+  <meta name="description" content="TechPulse haber detayı." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="detail">
+  <header class="site-header container">
+    <a class="brand" href="index.html" aria-label="TechPulse ana sayfa">
+      <span class="brand-mark">TP</span>
+      <span class="brand-text">TechPulse</span>
+    </a>
+    <nav class="main-nav" aria-label="Ana navigasyon">
+      <a href="index.html" class="nav-link">Gündem</a>
+      <a href="index.html#latest" class="nav-link">Son Haberler</a>
+      <a href="contact.html" class="nav-link">İletişim</a>
+      <a href="admin.html" class="nav-link">Admin</a>
+    </nav>
+  </header>
+
+  <main class="page-shell detail-shell container">
+    <a class="ghost-button back-link" href="index.html">← Haberlere dön</a>
+    <div data-news-detail aria-live="polite"></div>
+  </main>
+
+  <footer class="site-footer container">
+    <strong>TechPulse</strong>
+    <span>Supabase bağlantılı haber detayı.</span>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase.js"></script>
+  <script src="assets/js/news.js"></script>
+</body>
+</html>

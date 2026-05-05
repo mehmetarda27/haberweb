@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TechPulse | Premium Teknoloji Haberleri</title>
-  <meta name="description" content="TechPulse, modern ve premium dark temalÄ± teknoloji haber sitesi." />
+  <meta name="description" content="TechPulse, premium dark teknoloji haberlerini Supabase üzerinden yayınlar." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -17,11 +17,13 @@
       <span class="brand-text">TechPulse</span>
     </a>
     <nav class="main-nav" aria-label="Ana navigasyon">
-      <a href="#top" class="nav-link is-active">GÃ¼ndem</a>
+      <a href="#top" class="nav-link is-active">Gündem</a>
       <a href="#latest" class="nav-link">Son Haberler</a>
+      <a href="contact.html" class="nav-link">İletişim</a>
+      <a href="admin.html" class="nav-link">Admin</a>
     </nav>
     <label class="search-shell" aria-label="Haber ara">
-      <span>âŒ•</span>
+      <span>⌕</span>
       <input id="searchInput" type="search" placeholder="Haber ara" autocomplete="off" />
     </label>
   </header>
@@ -29,9 +31,9 @@
   <main id="top" class="page-shell container">
     <section class="hero-section hero">
       <div class="hero-copy">
-        <span class="eyebrow">Premium teknoloji medyasÄ±</span>
-        <h1 class="hero-title"><span class="hero-line">Teknoloji</span><span class="hero-line">gÃ¼ndeminin</span><span class="hero-line">nabzÄ± burada</span><span class="hero-line">atÄ±yor.</span></h1>
-        <p>Yapay zekadan siber gÃ¼venliÄŸe, mobil dÃ¼nyadan donanÄ±ma kadar gÃ¼nÃ¼n kritik geliÅŸmeleri tek merkezli haber modeliyle yayÄ±nlanÄ±r.</p>
+        <span class="eyebrow">Premium teknoloji medyası</span>
+        <h1 class="hero-title"><span class="hero-line">Teknoloji</span><span class="hero-line">gündeminin</span><span class="hero-line">nabzı burada</span><span class="hero-line">atıyor.</span></h1>
+        <p>Yapay zekadan siber güvenliğe, mobil dünyadan donanıma kadar günün kritik gelişmeleri canlı Supabase verisiyle yayınlanır.</p>
         <div id="categoryFilters" class="category-strip" aria-label="Kategori filtreleri"></div>
       </div>
       <article id="featuredNews" class="featured-story hero-featured featured-card" aria-live="polite"></article>
@@ -42,31 +44,35 @@
         <div class="section-heading" id="latest">
           <div>
             <span class="eyebrow">Son Haberler</span>
-            <h2>Vitrindeki geliÅŸmeler</h2>
+            <h2>Vitrindeki gelişmeler</h2>
           </div>
-          <p id="resultMeta">TÃ¼mÃ¼</p>
+          <p id="resultMeta">Yayındaki haberler</p>
         </div>
-        <div id="newsGrid" class="news-grid" aria-live="polite"></div>
+        <div id="newsGrid" class="news-grid" data-news-list aria-live="polite"></div>
       </div>
 
       <aside class="sidebar">
         <section class="side-panel">
           <div class="panel-title">
-            <h3>En Ã‡ok Okunanlar</h3>
+            <h3>Editörün Seçtikleri</h3>
           </div>
           <div id="popularList" class="popular-list"></div>
         </section>
         <section class="side-panel">
           <div class="panel-title">
-            <h3>PopÃ¼ler Etiketler</h3>
+            <h3>Teknoloji Başlıkları</h3>
           </div>
           <div id="tagCloud" class="tag-cloud"></div>
         </section>
-        <section class="side-panel">
+        <section class="side-panel newsletter-panel">
           <div class="panel-title">
-            <h3>HÄ±zlÄ± Teknoloji SÃ¶zlÃ¼ÄŸÃ¼</h3>
+            <h3>Bültene Katıl</h3>
           </div>
-          <div id="dictionaryList" class="dictionary-list"></div>
+          <form class="stack-form" data-newsletter-form>
+            <input name="email" type="email" placeholder="E-posta adresin" autocomplete="email" required />
+            <button class="primary-button" type="submit">Abone Ol</button>
+            <p class="form-message" data-form-message></p>
+          </form>
         </section>
       </aside>
     </section>
@@ -74,23 +80,11 @@
 
   <footer class="site-footer container">
     <strong>TechPulse</strong>
-    <span>Tek merkezli haber verisi, ID tabanlÄ± detay okuma ve yerel CMS demosu.</span>
+    <span>Supabase bağlantılı premium teknoloji haber platformu.</span>
   </footer>
 
-  <div id="newsModal" class="modal-backdrop" aria-hidden="true">
-    <article class="news-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <button id="closeModal" class="modal-close" type="button" aria-label="Haberi kapat">Ã—</button>
-      <img id="modalImage" class="modal-image" src="" alt="" />
-      <div class="modal-body">
-        <div id="modalMeta" class="modal-meta"></div>
-        <h2 id="modalTitle"></h2>
-        <p id="modalExcerpt" class="modal-excerpt"></p>
-        <div id="modalContent" class="modal-content"></div>
-        <div id="modalTags" class="modal-tags"></div>
-      </div>
-    </article>
-  </div>
-
-  <script src="app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase.js"></script>
+  <script src="assets/js/news.js"></script>
 </body>
 </html>
