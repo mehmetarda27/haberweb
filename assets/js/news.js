@@ -1,6 +1,6 @@
-const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1600&q=85";
-const CATEGORIES = ["Tümü", "Gündem", "Ekonomi", "Spor", "Teknoloji", "Sağlık", "Dünya", "Magazin"];
-const TURKISH_SIGNAL_PATTERN = /[\u00e7\u011f\u0131\u00f6\u015f\u00fc\u00c7\u011e\u0130\u00d6\u015e\u00dc]|\b(ve|ile|i\u00e7in|bir|son|yeni|g\u00fcn|sonra|\u00f6nce|t\u00fcrkiye|ankara|istanbul|izmir|haber|a\u00e7\u0131kland\u0131|geldi|oldu|var|yok|en|bu|\u015fu|g\u00f6re|karar|ba\u015fkan|bakan|d\u00fcnya|ekonomi|spor|teknoloji|sa\u011fl\u0131k|magazin|g\u00fcndem)\b/i;
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1600&q=85";
+const CATEGORIES = ["Tümü", "Teknoloji", "Yapay Zeka", "Oyun", "Donanım", "Mobil", "Siber Güvenlik", "Girişimcilik", "İnceleme"];
+const TURKISH_SIGNAL_PATTERN = /[çğıöşüÇĞİÖŞÜ]|\b(ve|ile|için|bir|son|yeni|gün|sonra|önce|türkiye|ankara|istanbul|izmir|haber|açıklandı|geldi|oldu|var|yok|en|bu|şu|göre|teknoloji|yapay|zeka|oyun|donanım|girişim|siber|güvenlik|mobil)\b/i;
 
 let allPublishedNews = [];
 let activeSearch = "";
@@ -25,35 +25,60 @@ function stripHTML(value) {
 function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Tarih yok";
+  const minutes = Math.max(1, Math.floor((Date.now() - date.getTime()) / 60000));
+  if (minutes < 60) return `${minutes}dk önce`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}sa önce`;
   return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
 function shortContent(value, length = 170) {
   const text = stripHTML(value);
-  return text.length > length ? `${text.slice(0, length).trim()}...` : text;
+  const summary = text || "Bu haber için kısa açıklama hazırlanıyor.";
+  return summary.length > length ? `${summary.slice(0, length).trim()}...` : summary;
 }
 
 function isLikelyTurkishArticle(article) {
   const title = String(article.title || "").toLocaleLowerCase("tr-TR");
-  const content = String(article.content || "").toLocaleLowerCase("tr-TR");
-  const haystack = `${title} ${content}`;
+  const content = String(article.content || article.excerpt || "").toLocaleLowerCase("tr-TR");
   if (!title.trim()) return false;
-  return TURKISH_SIGNAL_PATTERN.test(haystack);
+  return TURKISH_SIGNAL_PATTERN.test(`${title} ${content}`);
+}
+
+function normalizeCategory(category) {
+  const value = String(category || "").trim();
+  const aliases = {
+    "AI": "Yapay Zeka",
+    "Yapay zeka": "Yapay Zeka",
+    "Gaming": "Oyun",
+    "Spor": "Oyun",
+    "Cyber": "Siber Güvenlik",
+    "Siber": "Siber Güvenlik",
+    "Startup": "Girişimcilik",
+    "Girişim": "Girişimcilik",
+    "Hardware": "Donanım",
+    "Mobile": "Mobil"
+  };
+  return aliases[value] || value;
 }
 
 function getCategory(article) {
+  const directCategory = normalizeCategory(article.category);
+  if (directCategory) return directCategory;
+
   const text = `${article.title || ""} ${article.content || ""}`.toLocaleLowerCase("tr-TR");
-  if (/(dolar|euro|altın|ekonomi|borsa|faiz|piyasa|kur|enflasyon|merkez bankası)/i.test(text)) return "Ekonomi";
-  if (/(maç|spor|futbol|basketbol|voleybol|lig|gol|takım|transfer)/i.test(text)) return "Spor";
-  if (/(teknoloji|yapay zeka|telefon|yazılım|donanım|robot|uygulama|siber|bilim)/i.test(text)) return "Teknoloji";
-  if (/(sağlık|hastane|doktor|ilaç|tedavi|hasta|bakanlığı)/i.test(text)) return "Sağlık";
-  if (/(dünya|abd|avrupa|rusya|ukrayna|çin|almanya|fransa|nato|bm)/i.test(text)) return "Dünya";
-  if (/(ünlü|magazin|sanatçı|oyuncu|konser|dizi|film|şarkıcı)/i.test(text)) return "Magazin";
-  return "Gündem";
+  if (/(yapay zeka|ai|gpt|model|robot|otomasyon|npu)/i.test(text)) return "Yapay Zeka";
+  if (/(oyun|playstation|xbox|steam|nintendo|gaming|fps|konsol)/i.test(text)) return "Oyun";
+  if (/(donanım|gpu|işlemci|amd|nvidia|intel|çip|bellek|laptop)/i.test(text)) return "Donanım";
+  if (/(mobil|telefon|android|ios|apple|katlanabilir|5g)/i.test(text)) return "Mobil";
+  if (/(siber|güvenlik|ransomware|parola|passkey|zero trust)/i.test(text)) return "Siber Güvenlik";
+  if (/(girişim|startup|yatırım|uzay|roket|fintech|otomotiv)/i.test(text)) return "Girişimcilik";
+  if (/(inceleme|test|performans|puan|karşılaştırma)/i.test(text)) return "İnceleme";
+  return "Teknoloji";
 }
 
 function articleImage(article) {
-  return article.image_url || FALLBACK_IMAGE;
+  return article.image_url || article.image || FALLBACK_IMAGE;
 }
 
 function articleHref(article) {
@@ -61,8 +86,15 @@ function articleHref(article) {
 }
 
 function getSourceUrl(article) {
+  const directUrl = article.source_url || article.sourceUrl || article.url;
+  if (directUrl) return String(directUrl);
   const match = String(article.content || "").match(/https?:\/\/\S+/);
   return match ? match[0].replace(/[).,;]+$/, "") : "";
+}
+
+function getSourceLabel(article) {
+  const match = String(article.content || "").match(/Kaynak:\s*([^\n]+)/i);
+  return match ? match[1].trim() : "TechPulse Editörleri";
 }
 
 function isValidUrl(value) {
@@ -116,13 +148,15 @@ function renderCategoryFilters() {
   `).join("");
 }
 
+function sourceAction(article) {
+  const sourceUrl = getSourceUrl(article);
+  return isValidUrl(sourceUrl)
+    ? `<a href="${escapeHTML(sourceUrl)}" class="read-button" target="_blank" rel="noopener noreferrer">Devamını Oku <span aria-hidden="true">→</span></a>`
+    : `<span class="read-button is-disabled" aria-disabled="true">Link yok</span>`;
+}
+
 function articleCard(article) {
   const category = getCategory(article);
-  const sourceUrl = getSourceUrl(article);
-  const sourceAction = isValidUrl(sourceUrl)
-    ? `<a href="${escapeHTML(sourceUrl)}" class="read-button" target="_blank" rel="noopener noreferrer">Devamını Oku</a>`
-    : `<span class="read-button is-disabled" aria-disabled="true">Kaynak link bulunamadı</span>`;
-
   return `
     <article class="news-card" data-category="${escapeHTML(category)}">
       <a href="${articleHref(article)}" aria-label="${escapeHTML(article.title || "Haberi oku")}">
@@ -131,10 +165,10 @@ function articleCard(article) {
       <div class="card-body">
         <div class="meta-line"><span>${escapeHTML(category)}</span><span>${formatDate(article.created_at)}</span></div>
         <h3><a href="${articleHref(article)}">${escapeHTML(article.title || "Başlıksız Haber")}</a></h3>
-        <p>${escapeHTML(shortContent(article.content))}</p>
+        <p>${escapeHTML(shortContent(article.content || article.excerpt))}</p>
         <div class="card-footer">
-          <span>Yayında</span>
-          ${sourceAction}
+          <span>${escapeHTML(getSourceLabel(article))}</span>
+          ${sourceAction(article)}
         </div>
       </div>
     </article>
@@ -160,9 +194,10 @@ function renderBreakingBand() {
   const container = document.getElementById("breakingTrack");
   if (!container) return;
   const items = allPublishedNews.slice(0, 10);
-  container.innerHTML = items.map((article) => `
-    <a href="${articleHref(article)}"><b>${escapeHTML(getCategory(article))}</b>${escapeHTML(article.title || "Başlıksız haber")}</a>
+  const markup = items.map((article) => `
+    <a href="${articleHref(article)}"><b>⚡</b>${escapeHTML(article.title || "Başlıksız haber")}<span>${formatDate(article.created_at)}</span></a>
   `).join("");
+  container.innerHTML = markup ? `${markup}${markup}` : `<span>Son dakika akışı hazırlanıyor.</span>`;
 }
 
 function renderSlider() {
@@ -207,28 +242,31 @@ function renderFeatured() {
     renderStatus(container, "Manşet bekleniyor", "Yayınlanmış haber bulunamadı.");
     return;
   }
+
   container.innerHTML = `
-    <a href="${articleHref(article)}">
-      <img src="${escapeHTML(articleImage(article))}" alt="${escapeHTML(article.title || "Haber görseli")}" />
+    <div class="featured-link">
+      <a href="${articleHref(article)}" aria-label="${escapeHTML(article.title || "Manşet haberi oku")}">
+        <img src="${escapeHTML(articleImage(article))}" alt="${escapeHTML(article.title || "Haber görseli")}" />
+      </a>
       <div class="featured-overlay"></div>
       <div class="featured-content">
         <div class="meta-line"><span>${escapeHTML(getCategory(article))}</span><span>${formatDate(article.created_at)}</span></div>
         <h2>${escapeHTML(article.title || "Başlıksız Haber")}</h2>
-        <p>${escapeHTML(shortContent(article.content, 230))}</p>
-        <span class="read-button">Devamını Oku</span>
+        <p>${escapeHTML(shortContent(article.content || article.excerpt, 220))}</p>
+        ${sourceAction(article)}
       </div>
-    </a>
+    </div>
   `;
 }
 
 function renderPopular() {
   const container = document.getElementById("popularList");
   if (!container) return;
-  const items = allPublishedNews.slice(0, 6);
+  const items = allPublishedNews.slice(0, 4);
   container.innerHTML = items.map((article, index) => `
     <a class="popular-item" href="${articleHref(article)}">
-      <span class="popular-rank">${index + 1}</span>
-      <span><b>${escapeHTML(article.title || "Başlıksız Haber")}</b><span>${formatDate(article.created_at)} · ${escapeHTML(getCategory(article))}</span></span>
+      <span class="popular-rank">${String(index + 1).padStart(2, "0")}</span>
+      <span><b>${escapeHTML(article.title || "Başlıksız Haber")}</b><span>${formatDate(article.created_at)}</span></span>
     </a>
   `).join("") || `<div class="empty-state">Henüz haber yok.</div>`;
 }
@@ -253,21 +291,95 @@ async function fetchPosts(select = "id,title,content,image_url,published,created
   return Array.isArray(data) ? data : [];
 }
 
+async function fetchPublishedPosts() {
+  try {
+    return await fetchPosts("id,title,content,image_url,published,created_at,source_url,url,sourceUrl,category");
+  } catch {
+    return fetchPosts();
+  }
+}
+
+async function fetchPostById(id) {
+  if (window.supabaseClient) {
+    try {
+      const { data, error } = await window.supabaseClient
+        .from("posts")
+        .select("id,title,content,image_url,published,created_at,source_url,url,sourceUrl,category")
+        .eq("id", id)
+        .eq("published", true)
+        .single();
+      if (error) throw error;
+      return data;
+    } catch {
+      try {
+        const { data, error } = await window.supabaseClient
+          .from("posts")
+          .select("id,title,content,image_url,published,created_at")
+          .eq("id", id)
+          .eq("published", true)
+          .single();
+        if (error) throw error;
+        return data;
+      } catch {
+        const localNews = await fetchLocalNews();
+        const article = localNews.find((item) => String(item.id) === String(id));
+        if (article) return article;
+      }
+    }
+  }
+
+  const localNews = await fetchLocalNews();
+  const article = localNews.find((item) => String(item.id) === String(id));
+  if (!article) throw new Error("Local article not found.");
+  return article;
+}
+
+function normalizeLocalArticle(article) {
+  return {
+    ...article,
+    image_url: article.image_url || article.image,
+    created_at: article.created_at || article.date || new Date().toISOString(),
+    content: article.content || article.excerpt || "",
+    source_url: article.source_url || article.url || ""
+  };
+}
+
+async function fetchLocalNews() {
+  const response = await fetch("data/news.json", { cache: "no-store" });
+  if (!response.ok) throw new Error("Local news fallback failed.");
+  const data = await response.json();
+  return Array.isArray(data) ? data.map(normalizeLocalArticle) : [];
+}
+
+function renderAllNewsSurfaces() {
+  renderCategoryFilters();
+  renderBreakingBand();
+  renderSlider();
+  renderFeatured();
+  renderNewsList();
+  renderPopular();
+  renderTags();
+  startSlider();
+}
+
 async function loadNews() {
   const container = document.querySelector("[data-news-list]");
   if (container) renderSkeleton();
+
   try {
-    allPublishedNews = (await fetchPosts()).filter(isLikelyTurkishArticle);
-    renderCategoryFilters();
-    renderBreakingBand();
-    renderSlider();
-    renderFeatured();
-    renderNewsList();
-    renderPopular();
-    renderTags();
-    startSlider();
+    const remoteNews = window.supabaseClient ? await fetchPublishedPosts() : [];
+    allPublishedNews = remoteNews.filter(isLikelyTurkishArticle);
+    if (!allPublishedNews.length) {
+      allPublishedNews = (await fetchLocalNews()).filter(isLikelyTurkishArticle);
+    }
+    renderAllNewsSurfaces();
   } catch {
-    if (container) renderStatus(container, "Haberler yüklenemedi", "Bağlantı veya Supabase izinlerini kontrol et.", "error");
+    try {
+      allPublishedNews = (await fetchLocalNews()).filter(isLikelyTurkishArticle);
+      renderAllNewsSurfaces();
+    } catch {
+      if (container) renderStatus(container, "Haberler yüklenemedi", "Yerel haber arşivi de okunamadı.", "error");
+    }
   }
 }
 
@@ -288,14 +400,7 @@ async function loadSingleNews() {
   }
   renderStatus(container, "Haber yükleniyor", "Detaylar hazırlanıyor.");
   try {
-    if (!window.supabaseClient) throw new Error("Supabase client is not initialized.");
-    const { data, error } = await window.supabaseClient
-      .from("posts")
-      .select("id,title,content,image_url,published,created_at")
-      .eq("id", id)
-      .eq("published", true)
-      .single();
-    if (error) throw error;
+    const data = await fetchPostById(id);
     const category = getCategory(data);
     const sourceUrl = getSourceUrl(data);
     document.title = `${data.title || "Haber"} | TechPulse`;
@@ -310,7 +415,10 @@ async function loadSingleNews() {
         </div>
       </article>
     `;
-    allPublishedNews = (await fetchPosts()).filter(isLikelyTurkishArticle);
+    allPublishedNews = window.supabaseClient
+      ? (await fetchPublishedPosts()).filter(isLikelyTurkishArticle)
+      : (await fetchLocalNews()).filter(isLikelyTurkishArticle);
+    if (!allPublishedNews.length) allPublishedNews = (await fetchLocalNews()).filter(isLikelyTurkishArticle);
     renderOtherNews(id);
   } catch {
     renderStatus(container, "Haber yüklenemedi", "Haber yayında olmayabilir veya bağlantı sorunu oluştu.", "error");
@@ -361,7 +469,14 @@ function bindNewsEvents() {
       renderNewsList();
     });
   }
+
   document.addEventListener("click", (event) => {
+    const menuButton = event.target.closest("[data-menu-toggle]");
+    if (menuButton) {
+      document.querySelector(".site-header")?.classList.toggle("is-open");
+      return;
+    }
+
     const categoryButton = event.target.closest("[data-category]");
     if (categoryButton) {
       activeCategory = categoryButton.dataset.category || "Tümü";
@@ -369,9 +484,11 @@ function bindNewsEvents() {
       renderNewsList();
       renderTags();
     }
+
     if (event.target.closest("[data-slide-prev]")) moveSlide(-1);
     if (event.target.closest("[data-slide-next]")) moveSlide(1);
   });
+
   document.querySelectorAll("[data-contact-form]").forEach((form) => form.addEventListener("submit", saveContactMessage));
   document.querySelectorAll("[data-newsletter-form]").forEach((form) => form.addEventListener("submit", saveNewsletter));
 }

@@ -1,7 +1,10 @@
+import { readFile } from "node:fs/promises";
+
 const MAX_NEWS_PER_RUN = 50;
 const NEWS_API_ENDPOINT = "https://newsapi.org/v2/top-headlines";
 const OPENAI_RESPONSES_ENDPOINT = "https://api.openai.com/v1/responses";
 const OPENAI_MODEL = "gpt-4o-mini";
+const NEWS_QUERIES = ["teknoloji", "yapay zeka", "oyun", "girişim", "donanım", "siber güvenlik"];
 // External cron target, every 2 hours:
 // https://haberweb.vercel.app/api/import-news?secret=IMPORT_SECRET
 const TURKISH_SIGNAL_PATTERN = /[\u00e7\u011f\u0131\u00f6\u015f\u00fc\u00c7\u011e\u0130\u00d6\u015e\u00dc]|\b(ve|ile|i\u00e7in|bir|son|yeni|g\u00fcn|sonra|\u00f6nce|t\u00fcrkiye|ankara|istanbul|izmir|haber|a\u00e7\u0131kland\u0131|geldi|oldu|var|yok|en|bu|\u015fu|g\u00f6re|karar|ba\u015fkan|bakan|d\u00fcnya|ekonomi|spor|teknoloji)\b/i;
@@ -54,6 +57,51 @@ function normalizeArticle(article) {
     language: "tr",
     published: true
   };
+}
+
+function normalizeLocalSeedArticle(article) {
+  return {
+    title: normalizeText(article.title),
+    content: normalizeText(article.content || article.excerpt),
+    image_url: normalizeText(article.image || article.image_url),
+    source_url: normalizeText(article.source_url || article.url),
+    country: "tr",
+    language: "tr",
+    published: true
+  };
+}
+
+async function fetchLocalSeedNews() {
+  const fileUrl = new URL("../data/news.json", import.meta.url);
+  const payload = await readFile(fileUrl, "utf8");
+  const items = JSON.parse(payload);
+  const articles = (Array.isArray(items) ? items : [])
+    .map(normalizeLocalSeedArticle)
+    .filter((article) => article.title && article.content && isLikelyTurkishArticle(article))
+    .slice(0, MAX_NEWS_PER_RUN);
+
+  return {
+    articles,
+    fetched: articles.length,
+    skippedEnglish: 0,
+    skippedInvalid: 0,
+    sourceCount: 1
+  };
+}
+
+function dedupeArticles(articles) {
+  const seen = new Set();
+  const result = [];
+
+  for (const article of articles) {
+    const key = normalizeText(article.url || article.title).toLocaleLowerCase("tr-TR");
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(article);
+    if (result.length >= MAX_NEWS_PER_RUN) break;
+  }
+
+  return result;
 }
 
 function getOptionalEnv(name) {
@@ -161,31 +209,59 @@ function isLikelyTurkishArticle(article) {
 }
 
 async function fetchNews(newsApiKey) {
-  const params = new URLSearchParams({
-    country: "tr",
-    pageSize: String(MAX_NEWS_PER_RUN),
-    apiKey: newsApiKey
-  });
-
-  const response = await fetch(`${NEWS_API_ENDPOINT}?${params.toString()}`);
-  const payload = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    console.error("News API error:", response.status, payload);
-    throw new Error(payload?.message || `News API failed with status ${response.status}`);
+  if (!newsApiKey) {
+    console.log("NEWS_API_KEY not set. Using bundled Turkish TechPulse archive.");
+    return fetchLocalSeedNews();
   }
 
-  const rawArticles = Array.isArray(payload?.articles) ? payload.articles.slice(0, MAX_NEWS_PER_RUN) : [];
-  const normalizedArticles = rawArticles
+  const rawArticles = [];
+  let sourceCount = 0;
+
+  for (const query of NEWS_QUERIES) {
+    const params = new URLSearchParams({
+      country: "tr",
+      language: "tr",
+      q: query,
+      pageSize: String(MAX_NEWS_PER_RUN),
+      apiKey: newsApiKey
+    });
+
+    let response = await fetch(`${NEWS_API_ENDPOINT}?${params.toString()}`);
+    let payload = await response.json().catch(() => null);
+
+    if (!response.ok && String(payload?.message || "").toLocaleLowerCase("tr-TR").includes("language")) {
+      params.delete("language");
+      response = await fetch(`${NEWS_API_ENDPOINT}?${params.toString()}`);
+      payload = await response.json().catch(() => null);
+    }
+
+    if (!response.ok) {
+      console.warn("News API source skipped:", query, response.status, payload?.message || payload);
+      continue;
+    }
+
+    sourceCount += 1;
+    rawArticles.push(...(Array.isArray(payload?.articles) ? payload.articles : []));
+    if (dedupeArticles(rawArticles).length >= MAX_NEWS_PER_RUN) break;
+  }
+
+  const uniqueRawArticles = dedupeArticles(rawArticles);
+  const normalizedArticles = uniqueRawArticles
+    .slice(0, MAX_NEWS_PER_RUN)
     .map(normalizeArticle)
     .filter((article) => article.title && article.content)
     .slice(0, MAX_NEWS_PER_RUN);
-  const articles = await rewriteArticlesInTurkish(normalizedArticles);
+  const rewrittenArticles = await rewriteArticlesInTurkish(normalizedArticles);
+  const articles = rewrittenArticles.filter(isLikelyTurkishArticle).slice(0, MAX_NEWS_PER_RUN);
+  const skippedInvalid = Math.max(0, uniqueRawArticles.length - normalizedArticles.length);
+  const skippedEnglish = Math.max(0, normalizedArticles.length - articles.length);
 
   return {
     articles,
-    fetched: rawArticles.length,
-    skipped: Math.max(0, rawArticles.length - normalizedArticles.length)
+    fetched: uniqueRawArticles.length,
+    skippedEnglish,
+    skippedInvalid,
+    sourceCount
   };
 }
 
@@ -345,8 +421,8 @@ export default async function handler(req, res) {
       });
     }
 
-    const newsApiKey = requiredEnv("NEWS_API_KEY");
-    const { articles, fetched, skipped } = await fetchNews(newsApiKey);
+    const newsApiKey = getOptionalEnv("NEWS_API_KEY");
+    const { articles, fetched, skippedEnglish, skippedInvalid, sourceCount } = await fetchNews(newsApiKey);
     let inserted = 0;
     let duplicates = 0;
     const insertState = {
@@ -389,7 +465,11 @@ export default async function handler(req, res) {
       fetched,
       inserted,
       duplicates,
-      skipped,
+      skipped: skippedEnglish + skippedInvalid,
+      skippedEnglish,
+      skippedInvalid,
+      sourceCount,
+      sampleTitles: articles.slice(0, 5).map((article) => article.title),
       total: articles.length
     });
   } catch (error) {
