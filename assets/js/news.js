@@ -171,7 +171,7 @@ function imageMarkup(article, className = "") {
 }
 
 function articleHref(article) {
-  const id = article.id || article.slug || article.title || "";
+  const id = article.slug || article.id || article.title || "";
   return `haber.html?id=${encodeURIComponent(id)}`;
 }
 
@@ -371,70 +371,66 @@ function renderTags() {
   `).join("");
 }
 
-async function fetchPosts(select = "id,title,content,image_url,published,created_at") {
+async function fetchPosts(select = "id,slug,title,content,image_url,source_url,category,created_at") {
   if (!window.supabaseClient) throw new Error("Supabase client is not initialized.");
   const { data, error } = await window.supabaseClient
-  .from("posts")
-  .select(select)
-  .order("created_at", { ascending: false });
+    .from("posts")
+    .select(select)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
 }
 
 async function fetchPublishedPosts() {
-  try {
-    const posts = await fetchPosts("id,slug,title,content,image_url,imageUrl,image,urlToImage,thumbnail,urlToImageLarge,sourceImage,published,created_at,source_url,url,sourceUrl,category");
-    return posts.map(normalizeNewsImage);
-  } catch {
-    try {
-      const posts = await fetchPosts("id,slug,title,content,image_url,published,created_at,source_url,url,sourceUrl,category");
-      return posts.map(normalizeNewsImage);
-    } catch {
-      try {
-        const posts = await fetchPosts("id,slug,title,content,imageUrl,published,created_at,source_url,url,sourceUrl,category");
-        return posts.map(normalizeNewsImage);
-      } catch {
-        const posts = await fetchPosts("id,title,content,published,created_at,source_url,url,sourceUrl,category");
-        return posts.map(normalizeNewsImage);
-      }
-    }
-  }
+  const posts = await fetchPosts("id,slug,title,content,image_url,source_url,category,created_at");
+  return posts.map(normalizeNewsImage);
 }
 
 async function fetchPostById(id) {
   let data = null;
   console.log("[TechPulse detail] Gelen id:", id);
   if (window.supabaseClient) {
-    const selectOptions = [
-      "id,slug,title,content,image_url,imageUrl,image,urlToImage,thumbnail,urlToImageLarge,sourceImage,published,created_at,source_url,url,sourceUrl,category",
-      "id,slug,title,content,image_url,published,created_at,source_url,url,sourceUrl,category",
-      "id,slug,title,content,imageUrl,published,created_at,source_url,url,sourceUrl,category",
-      "id,title,content,image_url,published,created_at,source_url,url,sourceUrl,category"
-    ];
-    const matchFields = ["id", "slug"];
+    const select = "id,slug,title,content,image_url,source_url,category,created_at";
+    const looksLikeDbId = /^\d+$/.test(String(id)) || /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(id));
 
-    for (const select of selectOptions) {
-      for (const field of matchFields) {
-        try {
-          const response = await window.supabaseClient
-            .from("posts")
-            .select(select)
-            .eq(field, id)
-            .maybeSingle();
+    try {
+      const response = await window.supabaseClient
+        .from("posts")
+        .select(select)
+        .eq("slug", id)
+        .maybeSingle();
 
-          console.log("[TechPulse detail] Supabase query:", { field, id, data: response.data, error: response.error });
+      console.log("[TechPulse detail] Supabase slug query:", { id, data: response.data, error: response.error });
 
-          if (response.error) {
-            console.error("Supabase error:", response.error);
-            continue;
-          }
-          if (response.data) {
-            data = normalizeNewsImage(response.data);
-            break;
-          }
-        } catch (error) {
-          console.log("[TechPulse detail] Query exception:", { field, id, error });
-        }
+      if (response.error) {
+        console.error("Supabase error:", response.error);
+      } else if (response.data) {
+        data = normalizeNewsImage(response.data);
       }
-      if (data) break;
+    } catch (error) {
+      console.log("[TechPulse detail] Slug query exception:", { id, error });
+    }
+
+    if (!data && looksLikeDbId) {
+      try {
+        const response = await window.supabaseClient
+          .from("posts")
+          .select(select)
+          .eq("id", id)
+          .maybeSingle();
+
+        console.log("[TechPulse detail] Supabase id query:", { id, data: response.data, error: response.error });
+
+        if (response.error) {
+          console.error("Supabase error:", response.error);
+        } else if (response.data) {
+          data = normalizeNewsImage(response.data);
+        }
+      } catch (error) {
+        console.log("[TechPulse detail] Id query exception:", { id, error });
+      }
+    } else if (!data) {
+      console.log("[TechPulse detail] Değer slug gibi görünüyor, id kolonunda aranmadı:", id);
     }
   }
 
