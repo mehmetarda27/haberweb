@@ -3,51 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TechPulse | Türkçe Teknoloji ve Dijital Gündem Haberleri</title>
-  <meta name="description" content="TechPulse; yapay zeka, oyun, girişim, donanım, siber güvenlik ve dijital dünyadan Türkçe teknoloji haberlerini premium bir deneyimle sunar." />
-  <meta name="keywords" content="teknoloji haberleri, türkçe teknoloji haberleri, yapay zeka, oyun, girişimcilik, donanım, siber güvenlik, son dakika" />
+  <title>TechPulse | Türkçe Güncel Haberler</title>
+  <meta name="description" content="TechPulse; gündem, teknoloji, ekonomi, spor, dünya ve sağlık başlıklarında güncel Türkçe haberleri modern bir deneyimle sunar." />
+  <meta name="keywords" content="Türkçe haber, son dakika, gündem, teknoloji, ekonomi, spor, dünya, sağlık" />
   <meta name="author" content="TechPulse" />
   <meta name="robots" content="index, follow, max-image-preview:large" />
-  <meta name="theme-color" content="#050713" />
+  <meta name="theme-color" content="#07111f" />
   <link rel="canonical" href="https://haberweb.vercel.app/" />
 
   <meta property="og:locale" content="tr_TR" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="TechPulse" />
-  <meta property="og:title" content="TechPulse | Türkçe Teknoloji ve Dijital Gündem Haberleri" />
-  <meta property="og:description" content="Türkiye'den ve dünyadan teknoloji gündemini tek ekranda takip et." />
+  <meta property="og:title" content="TechPulse | Türkçe Güncel Haberler" />
+  <meta property="og:description" content="Türkiye ve dünyadan güvenilir Türkçe haberleri tek ekranda takip edin." />
   <meta property="og:url" content="https://haberweb.vercel.app/" />
-  <meta property="og:image" content="https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1200&q=85" />
+  <meta property="og:image" content="https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=85" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="TechPulse | Türkçe Teknoloji ve Dijital Gündem Haberleri" />
-  <meta name="twitter:description" content="Yapay zeka, oyun, girişim, donanım ve dijital dünya haberlerini Türkçe takip et." />
-  <meta name="twitter:image" content="https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1200&q=85" />
+  <meta name="twitter:title" content="TechPulse | Türkçe Güncel Haberler" />
+  <meta name="twitter:description" content="Gündem, teknoloji, ekonomi, spor, dünya ve sağlık haberleri." />
+  <meta name="twitter:image" content="https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=85" />
 
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "NewsMediaOrganization",
       "name": "TechPulse",
-      "url": "https://haberweb.vercel.app/",
-      "logo": "https://haberweb.vercel.app/favicon.ico",
-      "sameAs": [
-        "https://x.com/techpulse",
-        "https://www.instagram.com/techpulse",
-        "https://www.linkedin.com/company/techpulse"
-      ]
-    }
-  </script>
-  <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "TechPulse",
-      "url": "https://haberweb.vercel.app/",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "https://haberweb.vercel.app/?q={search_term_string}",
-        "query-input": "required name=search_term_string"
-      }
+      "url": "https://haberweb.vercel.app/"
     }
   </script>
 
@@ -58,7 +39,7 @@
 </head>
 <body data-page="home">
   <header class="site-header container">
-    <a class="brand" href="index.html" aria-label="TechPulse ana sayfa">
+    <a class="brand" href="/" aria-label="TechPulse ana sayfa">
       <span class="brand-mark">TP</span>
       <span class="brand-text">TechPulse</span>
     </a>
@@ -67,13 +48,11 @@
     </button>
     <nav class="main-nav" aria-label="Ana navigasyon">
       <a href="#top" class="nav-link is-active">Gündem</a>
-      <a href="#breaking" class="nav-link">Son Dakika</a>
       <a href="#latest" class="nav-link" data-category="Teknoloji">Teknoloji</a>
-      <a href="#latest" class="nav-link" data-category="Yapay Zeka">Yapay Zeka</a>
-      <a href="#latest" class="nav-link" data-category="Oyun">Oyun</a>
-      <a href="#latest" class="nav-link" data-category="İnceleme">İnceleme</a>
-      <a href="#latest" class="nav-link" data-category="Girişimcilik">Girişimcilik</a>
-      <a href="contact.html" class="nav-link">İletişim</a>
+      <a href="#latest" class="nav-link" data-category="Ekonomi">Ekonomi</a>
+      <a href="#latest" class="nav-link" data-category="Spor">Spor</a>
+      <a href="#latest" class="nav-link" data-category="Dünya">Dünya</a>
+      <a href="#latest" class="nav-link" data-category="Sağlık">Sağlık</a>
     </nav>
     <label class="search-shell" aria-label="Haber ara">
       <span class="search-icon" aria-hidden="true">⌕</span>
@@ -91,18 +70,17 @@
 
     <section class="hero-section premium-hero" aria-label="TechPulse giriş alanı">
       <div class="hero-copy">
-        <span class="eyebrow">24/7 Türkçe teknoloji akışı</span>
-        <h1 class="hero-title">Türkiye'den ve dünyadan teknoloji gündemi tek ekranda</h1>
-        <p>Yapay zeka, oyun, girişim, donanım ve dijital dünya haberlerini sade, hızlı ve yalnızca Türkçe bir deneyimle takip et.</p>
+        <span class="eyebrow">Güncel Türkçe haber akışı</span>
+        <h1 class="hero-title">Türkiye ve dünya gündemi tek ekranda</h1>
+        <p>Gündem, teknoloji, ekonomi, spor, dünya ve sağlık haberlerini kaynak, tarih, özet ve görsel bilgisiyle hızlıca takip edin.</p>
         <div class="hero-actions">
           <a class="primary-button" href="#latest">Son Haberleri Gör <span aria-hidden="true">→</span></a>
-          <a class="ghost-button" href="#categoryFilters">Gündemi Keşfet</a>
+          <a class="ghost-button" href="#categoryFilters">Kategorileri Aç</a>
         </div>
         <div class="hero-stats" aria-label="TechPulse özet metrikleri">
-          <span><b>24/7</b><small>Anlık Güncelleme</small></span>
-          <span><b>50+</b><small>Günlük Haber</small></span>
-          <span><b>100K+</b><small>Okuyucu</small></span>
-          <span><b>%100</b><small>Türkçe İçerik</small></span>
+          <span><b>50+</b><small>Haber hedefi</small></span>
+          <span><b>2 saat</b><small>Otomatik yenileme</small></span>
+          <span><b>%100</b><small>Türkçe arayüz</small></span>
         </div>
       </div>
 
@@ -126,43 +104,35 @@
             <span class="eyebrow">Son Haberler</span>
             <h2>Güncel akış</h2>
           </div>
-          <p id="resultMeta">Yayındaki haberler</p>
+          <p id="resultMeta">Haberler yükleniyor</p>
         </div>
         <div id="newsGrid" class="news-grid" data-news-list aria-live="polite"></div>
       </div>
 
       <aside class="sidebar">
         <section class="side-panel category-panel">
-          <div class="panel-title"><h3>Popüler Kategoriler</h3></div>
+          <div class="panel-title"><h3>Kategoriler</h3></div>
           <div class="category-cards">
-            <button type="button" data-category="Teknoloji">Teknoloji <span>1245 haber</span></button>
-            <button type="button" data-category="Yapay Zeka">Yapay Zeka <span>842 haber</span></button>
-            <button type="button" data-category="Oyun">Oyun <span>756 haber</span></button>
-            <button type="button" data-category="Donanım">Donanım <span>612 haber</span></button>
-            <button type="button" data-category="Mobil">Mobil <span>498 haber</span></button>
-            <button type="button" data-category="Siber Güvenlik">Siber Güvenlik <span>384 haber</span></button>
+            <button type="button" data-category="Gündem">Gündem <span>Genel haberler</span></button>
+            <button type="button" data-category="Teknoloji">Teknoloji <span>Dijital dünya</span></button>
+            <button type="button" data-category="Ekonomi">Ekonomi <span>Piyasa ve finans</span></button>
+            <button type="button" data-category="Spor">Spor <span>Karşılaşmalar</span></button>
+            <button type="button" data-category="Dünya">Dünya <span>Küresel gelişmeler</span></button>
+            <button type="button" data-category="Sağlık">Sağlık <span>Yaşam ve bilim</span></button>
           </div>
         </section>
         <section class="side-panel">
-          <div class="panel-title"><h3>Hızlı Başlıklar</h3></div>
+          <div class="panel-title"><h3>Hızlı Etiketler</h3></div>
           <div id="tagCloud" class="tag-cloud"></div>
-        </section>
-        <section class="side-panel newsletter-panel">
-          <div class="panel-title"><h3>Bültene Katıl</h3></div>
-          <form class="stack-form" data-newsletter-form>
-            <input name="email" type="email" placeholder="E-posta adresin" autocomplete="email" required />
-            <button class="primary-button" type="submit">Abone Ol</button>
-            <p class="form-message" data-form-message></p>
-          </form>
         </section>
       </aside>
     </section>
 
     <section class="trust-bar" aria-label="TechPulse kalite göstergeleri">
-      <span><b>Hızlı</b><small>Anlık güncellemeler</small></span>
-      <span><b>Güvenilir</b><small>Doğrulanmış kaynaklar</small></span>
-      <span><b>Tarafsız</b><small>Objektif haber anlayışı</small></span>
-      <span><b>Türkçe</b><small>%100 Türkçe içerik</small></span>
+      <span><b>Görselli</b><small>Her kartta güvenli görsel</small></span>
+      <span><b>Kaynaklı</b><small>Kaynak ve tarih bilgisi</small></span>
+      <span><b>Mobil</b><small>Tüm ekranlara uyumlu</small></span>
+      <span><b>Türkçe</b><small>Yabancı içerik filtresi</small></span>
     </section>
   </main>
 
@@ -171,29 +141,28 @@
       <div class="footer-grid">
         <div>
           <h3>TechPulse</h3>
-          <p>Türkiye odaklı teknoloji, dijital kültür ve gündem haberlerini hızlı, sade ve premium bir deneyimle sunar.</p>
+          <p>Güncel Türkçe haberleri sade, hızlı ve profesyonel bir okuma deneyimiyle sunar.</p>
         </div>
         <div>
           <h4>Kategoriler</h4>
           <div class="footer-links">
+            <a href="#latest" data-category="Gündem">Gündem</a>
             <a href="#latest" data-category="Teknoloji">Teknoloji</a>
-            <a href="#latest" data-category="Yapay Zeka">Yapay Zeka</a>
-            <a href="#latest" data-category="Oyun">Oyun</a>
+            <a href="#latest" data-category="Ekonomi">Ekonomi</a>
           </div>
         </div>
         <div>
-          <h4>İletişim</h4>
+          <h4>Haber Akışı</h4>
           <div class="footer-links">
-            <a href="contact.html">Okur masası</a>
-            <a href="contact.html">Bülten</a>
+            <a href="#breaking">Son Dakika</a>
+            <a href="#latest">Son Haberler</a>
           </div>
         </div>
         <div>
-          <h4>Sosyal</h4>
+          <h4>Yayın</h4>
           <div class="footer-links">
-            <a href="#" aria-label="TechPulse X">X</a>
-            <a href="#" aria-label="TechPulse Instagram">Instagram</a>
-            <a href="#" aria-label="TechPulse LinkedIn">LinkedIn</a>
+            <span>2 saatte bir otomatik güncellenir</span>
+            <span>Kaynaklar Türkçe önceliklidir</span>
           </div>
         </div>
       </div>

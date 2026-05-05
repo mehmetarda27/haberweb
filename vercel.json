@@ -1,0 +1,14 @@
+{
+  "crons": [
+    {
+      "path": "/api/import-news",
+      "schedule": "0 */2 * * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/index.html"
+    }
+  ]
+}
