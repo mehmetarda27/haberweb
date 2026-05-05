@@ -1,7 +1,6 @@
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1600&q=85";
 const CATEGORIES = ["Tümü", "Gündem", "Ekonomi", "Spor", "Teknoloji", "Sağlık", "Dünya", "Magazin"];
 const TURKISH_SIGNAL_PATTERN = /[\u00e7\u011f\u0131\u00f6\u015f\u00fc\u00c7\u011e\u0130\u00d6\u015e\u00dc]|\b(ve|ile|i\u00e7in|bir|son|yeni|g\u00fcn|sonra|\u00f6nce|t\u00fcrkiye|ankara|istanbul|izmir|haber|a\u00e7\u0131kland\u0131|geldi|oldu|var|yok|en|bu|\u015fu|g\u00f6re|karar|ba\u015fkan|bakan|d\u00fcnya|ekonomi|spor|teknoloji|sa\u011fl\u0131k|magazin|g\u00fcndem)\b/i;
-const ENGLISH_SIGNAL_PATTERN = /\b(the|and|with|after|before|from|over|under|into|about|this|that|will|could|would|says|said|new|latest|breaking|report|update|source|news)\b/i;
 
 let allPublishedNews = [];
 let activeSearch = "";
@@ -39,8 +38,7 @@ function isLikelyTurkishArticle(article) {
   const content = String(article.content || "").toLocaleLowerCase("tr-TR");
   const haystack = `${title} ${content}`;
   if (!title.trim()) return false;
-  if (TURKISH_SIGNAL_PATTERN.test(haystack)) return true;
-  return !ENGLISH_SIGNAL_PATTERN.test(title);
+  return TURKISH_SIGNAL_PATTERN.test(haystack);
 }
 
 function getCategory(article) {

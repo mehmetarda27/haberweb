@@ -3,7 +3,6 @@ const NEWS_API_ENDPOINT = "https://newsapi.org/v2/top-headlines";
 // External cron target, every 2 hours:
 // https://haberweb.vercel.app/api/import-news?secret=IMPORT_SECRET
 const TURKISH_SIGNAL_PATTERN = /[\u00e7\u011f\u0131\u00f6\u015f\u00fc\u00c7\u011e\u0130\u00d6\u015e\u00dc]|\b(ve|ile|i\u00e7in|bir|son|yeni|g\u00fcn|sonra|\u00f6nce|t\u00fcrkiye|ankara|istanbul|izmir|haber|a\u00e7\u0131kland\u0131|geldi|oldu|var|yok|en|bu|\u015fu|g\u00f6re|karar|ba\u015fkan|bakan|d\u00fcnya|ekonomi|spor|teknoloji)\b/i;
-const ENGLISH_SIGNAL_PATTERN = /\b(the|and|with|after|before|from|over|under|into|about|this|that|will|could|would|says|said|new|latest|breaking|report|update)\b/i;
 
 function sendJson(res, statusCode, payload) {
   return res.status(statusCode).json(payload);
@@ -40,10 +39,11 @@ function normalizeArticle(article) {
   const content = normalizeText(article.content);
   const url = normalizeText(article.url);
   const source = normalizeText(article.source?.name);
+  const turkishBody = [description, content].filter((value) => TURKISH_SIGNAL_PATTERN.test(value));
 
   return {
     title,
-    content: [description, content, source ? `Kaynak: ${source}` : "", url ? `Haber linki: ${url}` : ""]
+    content: [turkishBody.join("\n\n") || title, source ? `Kaynak: ${source}` : "", url ? `Haber linki: ${url}` : ""]
       .filter(Boolean)
       .join("\n\n"),
     image_url: normalizeText(article.urlToImage),
@@ -59,8 +59,7 @@ function isLikelyTurkishArticle(article) {
   const content = normalizeText(article.content).toLocaleLowerCase("tr-TR");
   const haystack = `${title} ${content}`;
   if (!title) return false;
-  if (TURKISH_SIGNAL_PATTERN.test(haystack)) return true;
-  return !ENGLISH_SIGNAL_PATTERN.test(title);
+  return TURKISH_SIGNAL_PATTERN.test(haystack);
 }
 
 async function fetchNews(newsApiKey) {
