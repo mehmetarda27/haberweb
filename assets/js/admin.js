@@ -125,7 +125,7 @@ async function loadAdminNews() {
   list.innerHTML = `<div class="empty-state">Haberler yükleniyor...</div>`;
 
   const { data, error } = await supabase
-    .from("gönderiler")
+    .from("posts")
     .select("id,title,content,image_url,published,created_at")
     .order("created_at", { ascending: false });
 
@@ -153,8 +153,8 @@ async function createNews(event) {
   setAdminMessage(editingId ? "Haber güncelleniyor..." : "Haber ekleniyor...");
 
   const request = editingId
-    ? supabase.from("gönderiler").update(news).eq("id", editingId)
-    : supabase.from("gönderiler").insert([news]);
+    ? supabase.from("posts").update(news).eq("id", editingId)
+    : supabase.from("posts").insert([news]);
 
   const { error } = await request;
   $("saveBtn").disabled = false;
@@ -193,7 +193,7 @@ async function deleteNews(id) {
   if (!ok) return;
 
   const { error } = await supabase
-    .from("gönderiler")
+    .from("posts")
     .delete()
     .eq("id", id);
 

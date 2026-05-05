@@ -163,7 +163,7 @@ async function loadNews() {
   renderStatus(container, "Haberler yükleniyor...");
 
   const { data, error } = await supabase
-    .from("gönderiler")
+    .from("posts")
     .select("id,title,content,image_url,published,created_at")
     .eq("published", true)
     .order("created_at", { ascending: false });
@@ -205,7 +205,7 @@ async function loadSingleNews() {
   renderStatus(container, "Haber yükleniyor...");
 
   const { data, error } = await supabase
-    .from("gönderiler")
+    .from("posts")
     .select("id,title,content,image_url,published,created_at")
     .eq("id", id)
     .eq("published", true)
@@ -243,7 +243,7 @@ async function saveContactMessage(event) {
   };
 
   const { error } = await supabase
-    .from("iletişim_mesajları")
+    .from("contact_messages")
     .insert([message]);
 
   if (error) {
@@ -267,7 +267,7 @@ async function saveNewsletter(event) {
   };
 
   const { error } = await supabase
-    .from("bülten_aboneleri")
+    .from("newsletter_subscribers")
     .insert([subscriber]);
 
   if (error) {
