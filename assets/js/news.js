@@ -65,6 +65,15 @@ function getSourceUrl(article) {
   return match ? match[0].replace(/[).,;]+$/, "") : "";
 }
 
+function isValidUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function getFilteredNews() {
   const search = activeSearch.toLocaleLowerCase("tr-TR").trim();
   return allPublishedNews.filter((article) => {
@@ -109,6 +118,11 @@ function renderCategoryFilters() {
 
 function articleCard(article) {
   const category = getCategory(article);
+  const sourceUrl = getSourceUrl(article);
+  const sourceAction = isValidUrl(sourceUrl)
+    ? `<a href="${escapeHTML(sourceUrl)}" class="read-button" target="_blank" rel="noopener noreferrer">Devamını Oku</a>`
+    : `<span class="read-button is-disabled" aria-disabled="true">Kaynak link bulunamadı</span>`;
+
   return `
     <article class="news-card" data-category="${escapeHTML(category)}">
       <a href="${articleHref(article)}" aria-label="${escapeHTML(article.title || "Haberi oku")}">
@@ -120,7 +134,7 @@ function articleCard(article) {
         <p>${escapeHTML(shortContent(article.content))}</p>
         <div class="card-footer">
           <span>Yayında</span>
-          <a href="${articleHref(article)}" class="read-button">Devamını Oku</a>
+          ${sourceAction}
         </div>
       </div>
     </article>
@@ -292,7 +306,7 @@ async function loadSingleNews() {
           <div class="meta-line"><span>${escapeHTML(category)}</span><span>${formatDate(data.created_at)}</span></div>
           <h1>${escapeHTML(data.title || "Başlıksız Haber")}</h1>
           <div class="modal-content">${String(data.content || "").split(/\n+/).filter(Boolean).map((paragraph) => `<p>${escapeHTML(paragraph)}</p>`).join("")}</div>
-          ${sourceUrl ? `<a class="source-link" href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener">Kaynağı görüntüle</a>` : ""}
+          ${isValidUrl(sourceUrl) ? `<a class="source-link" href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">Kaynak haberi oku</a>` : `<p class="source-missing">Kaynak link bulunamadı</p>`}
         </div>
       </article>
     `;

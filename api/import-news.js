@@ -1,5 +1,7 @@
 const MAX_NEWS_PER_RUN = 50;
 const NEWS_API_ENDPOINT = "https://newsapi.org/v2/top-headlines";
+const OPENAI_RESPONSES_ENDPOINT = "https://api.openai.com/v1/responses";
+const OPENAI_MODEL = "gpt-4o-mini";
 // External cron target, every 2 hours:
 // https://haberweb.vercel.app/api/import-news?secret=IMPORT_SECRET
 const TURKISH_SIGNAL_PATTERN = /[\u00e7\u011f\u0131\u00f6\u015f\u00fc\u00c7\u011e\u0130\u00d6\u015e\u00dc]|\b(ve|ile|i\u00e7in|bir|son|yeni|g\u00fcn|sonra|\u00f6nce|t\u00fcrkiye|ankara|istanbul|izmir|haber|a\u00e7\u0131kland\u0131|geldi|oldu|var|yok|en|bu|\u015fu|g\u00f6re|karar|ba\u015fkan|bakan|d\u00fcnya|ekonomi|spor|teknoloji)\b/i;
@@ -54,6 +56,102 @@ function normalizeArticle(article) {
   };
 }
 
+function getOptionalEnv(name) {
+  return process.env[name] || "";
+}
+
+function extractResponseText(payload) {
+  if (payload?.output_text) return payload.output_text;
+
+  const output = Array.isArray(payload?.output) ? payload.output : [];
+  for (const item of output) {
+    const content = Array.isArray(item?.content) ? item.content : [];
+    for (const part of content) {
+      if (part?.type === "output_text" && part.text) return part.text;
+      if (part?.text) return part.text;
+    }
+  }
+
+  return "";
+}
+
+async function rewriteArticleInTurkish(article, openaiApiKey) {
+  if (!openaiApiKey) return article;
+
+  try {
+    const response = await fetch(OPENAI_RESPONSES_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        instructions:
+          "Sen deneyimli bir Türkçe haber editörüsün. Metni NTV, Habertürk ve Webtekno çizgisinde net, doğal, profesyonel Türkçe haber diline çevirip yeniden yaz. Bozuk karakter kullanma. Yarım cümle kurma. Abartılı clickbait yazma. Sadece geçerli JSON döndür.",
+        input: `Kaynak başlık: ${article.title}\n\nKaynak metin: ${article.content}\n\nKaynak link: ${article.source_url || ""}`,
+        text: {
+          format: {
+            type: "json_schema",
+            name: "turkish_news_article",
+            strict: true,
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                title: {
+                  type: "string",
+                  description: "Kısa, vurucu ve doğal Türkçe haber başlığı."
+                },
+                description: {
+                  type: "string",
+                  description: "Doğal Türkçe haber özeti. 2-4 cümle."
+                }
+              },
+              required: ["title", "description"]
+            }
+          }
+        }
+      })
+    });
+
+    if (!response.ok) {
+      console.warn("OpenAI rewrite skipped:", response.status);
+      return article;
+    }
+
+    const payload = await response.json();
+    const text = extractResponseText(payload);
+    const rewritten = JSON.parse(text);
+    const title = normalizeText(rewritten.title);
+    const description = normalizeText(rewritten.description);
+
+    if (!title || !description) return article;
+
+    return {
+      ...article,
+      title,
+      content: [description, article.source_url ? `Kaynak haberi oku: ${article.source_url}` : ""]
+        .filter(Boolean)
+        .join("\n\n")
+    };
+  } catch (error) {
+    console.warn("OpenAI rewrite failed, original article kept:", error?.message || error);
+    return article;
+  }
+}
+
+async function rewriteArticlesInTurkish(articles) {
+  const openaiApiKey = getOptionalEnv("OPENAI_API_KEY");
+  const rewritten = [];
+
+  for (const article of articles) {
+    rewritten.push(await rewriteArticleInTurkish(article, openaiApiKey));
+  }
+
+  return rewritten;
+}
+
 function isLikelyTurkishArticle(article) {
   const title = normalizeText(article.title).toLocaleLowerCase("tr-TR");
   const content = normalizeText(article.content).toLocaleLowerCase("tr-TR");
@@ -78,16 +176,16 @@ async function fetchNews(newsApiKey) {
   }
 
   const rawArticles = Array.isArray(payload?.articles) ? payload.articles.slice(0, MAX_NEWS_PER_RUN) : [];
-  const articles = rawArticles
+  const normalizedArticles = rawArticles
     .map(normalizeArticle)
     .filter((article) => article.title && article.content)
-    .filter(isLikelyTurkishArticle)
     .slice(0, MAX_NEWS_PER_RUN);
+  const articles = await rewriteArticlesInTurkish(normalizedArticles);
 
   return {
     articles,
     fetched: rawArticles.length,
-    skipped: Math.max(0, rawArticles.length - articles.length)
+    skipped: Math.max(0, rawArticles.length - normalizedArticles.length)
   };
 }
 
@@ -151,7 +249,7 @@ async function sourceUrlExistsInContent(sourceUrl) {
 }
 
 async function insertPost(article, options = {}) {
-  const { includeSourceUrl = true, includeLocaleFields = true } = options;
+  const { includeSourceUrl = true, includeUrlFields = true, includeLocaleFields = true } = options;
   const post = {
     title: article.title,
     content: article.content,
@@ -161,6 +259,11 @@ async function insertPost(article, options = {}) {
 
   if (includeSourceUrl && article.source_url) {
     post.source_url = article.source_url;
+  }
+
+  if (includeUrlFields && article.source_url) {
+    post.url = article.source_url;
+    post.sourceUrl = article.source_url;
   }
 
   if (includeLocaleFields) {
@@ -177,6 +280,11 @@ async function insertPost(article, options = {}) {
 function isMissingSourceUrlColumn(error) {
   const message = `${error?.message || ""} ${JSON.stringify(error?.payload || {})}`;
   return message.includes("source_url") && (message.includes("schema cache") || message.includes("column"));
+}
+
+function isMissingUrlColumn(error) {
+  const message = `${error?.message || ""} ${JSON.stringify(error?.payload || {})}`;
+  return (message.includes("url") || message.includes("sourceUrl")) && (message.includes("schema cache") || message.includes("column"));
 }
 
 function isMissingLocaleColumn(error) {
@@ -199,6 +307,12 @@ async function insertPostWithFallback(article, state) {
       if (state.includeSourceUrl && isMissingSourceUrlColumn(error)) {
         state.includeSourceUrl = false;
         console.warn("Retrying insert without source_url:", article.title);
+        continue;
+      }
+
+      if (state.includeUrlFields && isMissingUrlColumn(error)) {
+        state.includeUrlFields = false;
+        console.warn("Retrying insert without url/sourceUrl:", article.title);
         continue;
       }
 
@@ -237,6 +351,7 @@ export default async function handler(req, res) {
     let duplicates = 0;
     const insertState = {
       includeSourceUrl: true,
+      includeUrlFields: true,
       includeLocaleFields: true
     };
 

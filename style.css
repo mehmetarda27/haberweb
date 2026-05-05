@@ -1054,6 +1054,18 @@ body::before {
   font-weight: 900;
 }
 
+.read-button.is-disabled,
+.source-missing {
+  opacity: 0.68;
+  cursor: default;
+}
+
+.source-missing {
+  margin-top: 18px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .related-section {
   margin-top: 34px;
 }
