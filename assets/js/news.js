@@ -1,6 +1,10 @@
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1600&q=85";
 const CATEGORIES = ["Tümü", "Teknoloji", "Yapay Zeka", "Oyun", "Donanım", "Mobil", "Siber Güvenlik", "Girişimcilik", "İnceleme"];
-const TURKISH_SIGNAL_PATTERN = /[çğıöşüÇĞİÖŞÜ]|\b(ve|ile|için|bir|son|yeni|gün|sonra|önce|türkiye|ankara|istanbul|izmir|haber|açıklandı|geldi|oldu|var|yok|en|bu|şu|göre|teknoloji|yapay|zeka|oyun|donanım|girişim|siber|güvenlik|mobil)\b/i;
+const ENGLISH_WORDS = new Set(["the", "and", "with", "for", "from", "says", "after", "before", "new", "update", "report", "startup", "company", "game", "tech", "technology", "launch", "announces", "reveals", "could", "will", "is", "are", "was", "were", "has", "have", "this", "that", "you", "your", "as", "by", "on", "in", "to", "of", "at", "it", "its", "about", "over", "more", "first", "latest"]);
+const TURKISH_WORDS = new Set(["ve", "ile", "için", "bir", "son", "yeni", "gün", "sonra", "önce", "türkiye", "haber", "açıklandı", "geldi", "oldu", "var", "yok", "bu", "şu", "göre", "teknoloji", "yapay", "zeka", "oyun", "donanım", "girişim", "siber", "güvenlik", "mobil", "yerli", "kullanıcı", "şirket", "uygulama", "model", "cihaz", "pazar", "gelişme", "duyurdu", "başladı", "özellik", "özellikleri", "çıktı", "tanıttı", "artık", "daha", "olarak", "olan"]);
+const TURKISH_CHARS = /[çğıöşüÇĞİÖŞÜ]/g;
+const LETTERS = /[a-zA-ZçğıöşüÇĞİÖŞÜ]/g;
+const WORDS = /[a-zA-ZçğıöşüÇĞİÖŞÜ]+/g;
 
 let allPublishedNews = [];
 let activeSearch = "";
@@ -22,6 +26,41 @@ function stripHTML(value) {
   return String(value ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function normalizeText(value) {
+  return stripHTML(value).replace(/\s+/g, " ").trim();
+}
+
+function tokenize(value) {
+  return normalizeText(value).toLocaleLowerCase("tr-TR").match(WORDS) || [];
+}
+
+function isTurkishNews(article) {
+  const title = normalizeText(article.title);
+  const description = normalizeText(article.description || article.content || article.excerpt);
+  if (!title || title.length < 8) return false;
+
+  const text = `${title} ${description}`;
+  const tokens = tokenize(text);
+  const letters = text.match(LETTERS) || [];
+  const turkishChars = text.match(TURKISH_CHARS) || [];
+  const englishHits = tokens.filter((token) => token !== "ai" && ENGLISH_WORDS.has(token)).length;
+  const turkishHits = tokens.filter((token) => TURKISH_WORDS.has(token)).length;
+  const englishRatio = tokens.length ? englishHits / tokens.length : 0;
+  const turkishRatio = tokens.length ? turkishHits / tokens.length : 0;
+  const turkishCharRatio = letters.length ? turkishChars.length / letters.length : 0;
+
+  if (tokens.length < 4) return false;
+  if (englishHits >= 4 && englishHits > turkishHits) return false;
+  if (englishRatio >= 0.24 && turkishRatio < 0.14 && turkishCharRatio < 0.012) return false;
+  if (turkishHits >= 2 || turkishCharRatio >= 0.018) return true;
+  if (turkishHits >= 1 && englishHits <= 1 && tokens.length <= 10) return true;
+  return false;
+}
+
+function onlyTurkishNews(list) {
+  return (Array.isArray(list) ? list : []).filter(isTurkishNews);
+}
+
 function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Tarih yok";
@@ -33,31 +72,24 @@ function formatDate(value) {
 }
 
 function shortContent(value, length = 170) {
-  const text = stripHTML(value);
+  const text = normalizeText(value);
   const summary = text || "Bu haber için kısa açıklama hazırlanıyor.";
   return summary.length > length ? `${summary.slice(0, length).trim()}...` : summary;
-}
-
-function isLikelyTurkishArticle(article) {
-  const title = String(article.title || "").toLocaleLowerCase("tr-TR");
-  const content = String(article.content || article.excerpt || "").toLocaleLowerCase("tr-TR");
-  if (!title.trim()) return false;
-  return TURKISH_SIGNAL_PATTERN.test(`${title} ${content}`);
 }
 
 function normalizeCategory(category) {
   const value = String(category || "").trim();
   const aliases = {
-    "AI": "Yapay Zeka",
+    AI: "Yapay Zeka",
     "Yapay zeka": "Yapay Zeka",
-    "Gaming": "Oyun",
-    "Spor": "Oyun",
-    "Cyber": "Siber Güvenlik",
-    "Siber": "Siber Güvenlik",
-    "Startup": "Girişimcilik",
-    "Girişim": "Girişimcilik",
-    "Hardware": "Donanım",
-    "Mobile": "Mobil"
+    Gaming: "Oyun",
+    Spor: "Oyun",
+    Cyber: "Siber Güvenlik",
+    Siber: "Siber Güvenlik",
+    Startup: "Girişimcilik",
+    Girişim: "Girişimcilik",
+    Hardware: "Donanım",
+    Mobile: "Mobil"
   };
   return aliases[value] || value;
 }
@@ -108,7 +140,7 @@ function isValidUrl(value) {
 
 function getFilteredNews() {
   const search = activeSearch.toLocaleLowerCase("tr-TR").trim();
-  return allPublishedNews.filter((article) => {
+  return onlyTurkishNews(allPublishedNews).filter((article) => {
     const category = getCategory(article);
     const categoryMatch = activeCategory === "Tümü" || category === activeCategory;
     const haystack = `${article.title || ""} ${article.content || ""}`.toLocaleLowerCase("tr-TR");
@@ -156,6 +188,7 @@ function sourceAction(article) {
 }
 
 function articleCard(article) {
+  if (!isTurkishNews(article)) return "";
   const category = getCategory(article);
   return `
     <article class="news-card" data-category="${escapeHTML(category)}">
@@ -193,7 +226,7 @@ function renderNewsList() {
 function renderBreakingBand() {
   const container = document.getElementById("breakingTrack");
   if (!container) return;
-  const items = allPublishedNews.slice(0, 10);
+  const items = onlyTurkishNews(allPublishedNews).slice(0, 10);
   const markup = items.map((article) => `
     <a href="${articleHref(article)}"><b>⚡</b>${escapeHTML(article.title || "Başlıksız haber")}<span>${formatDate(article.created_at)}</span></a>
   `).join("");
@@ -203,7 +236,7 @@ function renderBreakingBand() {
 function renderSlider() {
   const container = document.getElementById("headlineSlider");
   if (!container) return;
-  const items = allPublishedNews.slice(0, 5);
+  const items = onlyTurkishNews(allPublishedNews).slice(0, 5);
   if (!items.length) {
     renderStatus(container, "Öne çıkan haber yok", "Yayınlanmış haberler geldiğinde slider burada görünecek.");
     return;
@@ -223,7 +256,7 @@ function renderSlider() {
 }
 
 function moveSlide(direction) {
-  const count = Math.min(allPublishedNews.length, 5);
+  const count = Math.min(onlyTurkishNews(allPublishedNews).length, 5);
   if (!count) return;
   activeSlide = (activeSlide + direction + count) % count;
   renderSlider();
@@ -237,9 +270,9 @@ function startSlider() {
 function renderFeatured() {
   const container = document.getElementById("featuredNews");
   if (!container) return;
-  const article = allPublishedNews[0];
+  const article = onlyTurkishNews(allPublishedNews)[0];
   if (!article) {
-    renderStatus(container, "Manşet bekleniyor", "Yayınlanmış haber bulunamadı.");
+    renderStatus(container, "Manşet bekleniyor", "Yayınlanmış Türkçe haber bulunamadı.");
     return;
   }
 
@@ -262,13 +295,13 @@ function renderFeatured() {
 function renderPopular() {
   const container = document.getElementById("popularList");
   if (!container) return;
-  const items = allPublishedNews.slice(0, 4);
+  const items = onlyTurkishNews(allPublishedNews).slice(0, 4);
   container.innerHTML = items.map((article, index) => `
     <a class="popular-item" href="${articleHref(article)}">
       <span class="popular-rank">${String(index + 1).padStart(2, "0")}</span>
       <span><b>${escapeHTML(article.title || "Başlıksız Haber")}</b><span>${formatDate(article.created_at)}</span></span>
     </a>
-  `).join("") || `<div class="empty-state">Henüz haber yok.</div>`;
+  `).join("") || `<div class="empty-state">Henüz Türkçe haber yok.</div>`;
 }
 
 function renderTags() {
@@ -300,38 +333,29 @@ async function fetchPublishedPosts() {
 }
 
 async function fetchPostById(id) {
+  let data = null;
   if (window.supabaseClient) {
     try {
-      const { data, error } = await window.supabaseClient
+      const response = await window.supabaseClient
         .from("posts")
         .select("id,title,content,image_url,published,created_at,source_url,url,sourceUrl,category")
         .eq("id", id)
         .eq("published", true)
         .single();
-      if (error) throw error;
-      return data;
+      if (response.error) throw response.error;
+      data = response.data;
     } catch {
-      try {
-        const { data, error } = await window.supabaseClient
-          .from("posts")
-          .select("id,title,content,image_url,published,created_at")
-          .eq("id", id)
-          .eq("published", true)
-          .single();
-        if (error) throw error;
-        return data;
-      } catch {
-        const localNews = await fetchLocalNews();
-        const article = localNews.find((item) => String(item.id) === String(id));
-        if (article) return article;
-      }
+      data = null;
     }
   }
 
-  const localNews = await fetchLocalNews();
-  const article = localNews.find((item) => String(item.id) === String(id));
-  if (!article) throw new Error("Local article not found.");
-  return article;
+  if (!data) {
+    const localNews = await fetchLocalNews();
+    data = localNews.find((item) => String(item.id) === String(id));
+  }
+
+  if (!data || !isTurkishNews(data)) throw new Error("Turkish article not found.");
+  return data;
 }
 
 function normalizeLocalArticle(article) {
@@ -348,10 +372,11 @@ async function fetchLocalNews() {
   const response = await fetch("data/news.json", { cache: "no-store" });
   if (!response.ok) throw new Error("Local news fallback failed.");
   const data = await response.json();
-  return Array.isArray(data) ? data.map(normalizeLocalArticle) : [];
+  return onlyTurkishNews((Array.isArray(data) ? data : []).map(normalizeLocalArticle));
 }
 
 function renderAllNewsSurfaces() {
+  allPublishedNews = onlyTurkishNews(allPublishedNews);
   renderCategoryFilters();
   renderBreakingBand();
   renderSlider();
@@ -368,14 +393,14 @@ async function loadNews() {
 
   try {
     const remoteNews = window.supabaseClient ? await fetchPublishedPosts() : [];
-    allPublishedNews = remoteNews.filter(isLikelyTurkishArticle);
+    allPublishedNews = onlyTurkishNews(remoteNews);
     if (!allPublishedNews.length) {
-      allPublishedNews = (await fetchLocalNews()).filter(isLikelyTurkishArticle);
+      allPublishedNews = await fetchLocalNews();
     }
     renderAllNewsSurfaces();
   } catch {
     try {
-      allPublishedNews = (await fetchLocalNews()).filter(isLikelyTurkishArticle);
+      allPublishedNews = await fetchLocalNews();
       renderAllNewsSurfaces();
     } catch {
       if (container) renderStatus(container, "Haberler yüklenemedi", "Yerel haber arşivi de okunamadı.", "error");
@@ -386,8 +411,8 @@ async function loadNews() {
 function renderOtherNews(currentId) {
   const container = document.getElementById("relatedNews");
   if (!container) return;
-  const items = allPublishedNews.filter((article) => String(article.id) !== String(currentId)).slice(0, 3);
-  container.innerHTML = items.map(articleCard).join("") || `<div class="empty-state">Diğer haberler bulunamadı.</div>`;
+  const items = onlyTurkishNews(allPublishedNews).filter((article) => String(article.id) !== String(currentId)).slice(0, 3);
+  container.innerHTML = items.map(articleCard).join("") || `<div class="empty-state">Diğer Türkçe haberler bulunamadı.</div>`;
 }
 
 async function loadSingleNews() {
@@ -415,13 +440,11 @@ async function loadSingleNews() {
         </div>
       </article>
     `;
-    allPublishedNews = window.supabaseClient
-      ? (await fetchPublishedPosts()).filter(isLikelyTurkishArticle)
-      : (await fetchLocalNews()).filter(isLikelyTurkishArticle);
-    if (!allPublishedNews.length) allPublishedNews = (await fetchLocalNews()).filter(isLikelyTurkishArticle);
+    allPublishedNews = window.supabaseClient ? onlyTurkishNews(await fetchPublishedPosts()) : await fetchLocalNews();
+    if (!allPublishedNews.length) allPublishedNews = await fetchLocalNews();
     renderOtherNews(id);
   } catch {
-    renderStatus(container, "Haber yüklenemedi", "Haber yayında olmayabilir veya bağlantı sorunu oluştu.", "error");
+    renderStatus(container, "Haber yüklenemedi", "Haber Türkçe olmayabilir, yayında olmayabilir veya bağlantı sorunu oluştu.", "error");
   }
 }
 

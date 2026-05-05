@@ -1,13 +1,40 @@
 import { readFile } from "node:fs/promises";
 
 const MAX_NEWS_PER_RUN = 50;
-const NEWS_API_ENDPOINT = "https://newsapi.org/v2/top-headlines";
-const OPENAI_RESPONSES_ENDPOINT = "https://api.openai.com/v1/responses";
-const OPENAI_MODEL = "gpt-4o-mini";
-const NEWS_QUERIES = ["teknoloji", "yapay zeka", "oyun", "girişim", "donanım", "siber güvenlik"];
-// External cron target, every 2 hours:
-// https://haberweb.vercel.app/api/import-news?secret=IMPORT_SECRET
-const TURKISH_SIGNAL_PATTERN = /[\u00e7\u011f\u0131\u00f6\u015f\u00fc\u00c7\u011e\u0130\u00d6\u015e\u00dc]|\b(ve|ile|i\u00e7in|bir|son|yeni|g\u00fcn|sonra|\u00f6nce|t\u00fcrkiye|ankara|istanbul|izmir|haber|a\u00e7\u0131kland\u0131|geldi|oldu|var|yok|en|bu|\u015fu|g\u00f6re|karar|ba\u015fkan|bakan|d\u00fcnya|ekonomi|spor|teknoloji)\b/i;
+const NEWS_API_EVERYTHING_ENDPOINT = "https://newsapi.org/v2/everything";
+const NEWS_API_HEADLINES_ENDPOINT = "https://newsapi.org/v2/top-headlines";
+const NEWS_QUERIES = ["teknoloji", "yapay zeka", "oyun", "donanım", "siber güvenlik", "girişim", "mobil"];
+const TURKISH_DOMAINS = [
+  "webtekno.com",
+  "donanimhaber.com",
+  "shiftdelete.net",
+  "chip.com.tr",
+  "log.com.tr",
+  "technopat.net",
+  "tamindir.com",
+  "teknoblog.com",
+  "hardwareplus.com.tr",
+  "bthaber.com"
+];
+
+const ENGLISH_WORDS = new Set([
+  "the", "and", "with", "for", "from", "says", "after", "before", "new", "update", "report",
+  "startup", "company", "game", "tech", "technology", "launch", "announces", "reveals", "could",
+  "will", "is", "are", "was", "were", "has", "have", "this", "that", "you", "your", "as", "by",
+  "on", "in", "to", "of", "at", "it", "its", "about", "over", "more", "first", "latest"
+]);
+
+const TURKISH_WORDS = new Set([
+  "ve", "ile", "için", "bir", "son", "yeni", "gün", "sonra", "önce", "türkiye", "haber",
+  "açıklandı", "geldi", "oldu", "var", "yok", "bu", "şu", "göre", "teknoloji", "yapay",
+  "zeka", "oyun", "donanım", "girişim", "siber", "güvenlik", "mobil", "yerli", "kullanıcı",
+  "şirket", "uygulama", "model", "cihaz", "pazar", "gelişme", "duyurdu", "başladı",
+  "özellik", "özellikleri", "çıktı", "tanıttı", "artık", "daha", "olarak", "olan"
+]);
+
+const TURKISH_CHARS = /[çğıöşüÇĞİÖŞÜ]/g;
+const LETTERS = /[a-zA-ZçğıöşüÇĞİÖŞÜ]/g;
+const WORDS = /[a-zA-ZçğıöşüÇĞİÖŞÜ]+/g;
 
 function sendJson(res, statusCode, payload) {
   return res.status(statusCode).json(payload);
@@ -23,6 +50,10 @@ function requiredEnv(name) {
   return value;
 }
 
+function getOptionalEnv(name) {
+  return process.env[name] || "";
+}
+
 function getSecretFromRequest(req) {
   if (req.query?.secret) return req.query.secret;
 
@@ -35,20 +66,73 @@ function getSecretFromRequest(req) {
 }
 
 function normalizeText(value) {
-  return String(value || "").trim();
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function tokenize(value) {
+  return normalizeText(value)
+    .toLocaleLowerCase("tr-TR")
+    .match(WORDS) || [];
+}
+
+function getLanguageScore(title, description) {
+  const text = normalizeText(`${title} ${description}`);
+  const tokens = tokenize(text);
+  const letters = text.match(LETTERS) || [];
+  const turkishChars = text.match(TURKISH_CHARS) || [];
+  const englishHits = tokens.filter((token) => token !== "ai" && ENGLISH_WORDS.has(token)).length;
+  const turkishHits = tokens.filter((token) => TURKISH_WORDS.has(token)).length;
+  const englishRatio = tokens.length ? englishHits / tokens.length : 0;
+  const turkishRatio = tokens.length ? turkishHits / tokens.length : 0;
+  const turkishCharRatio = letters.length ? turkishChars.length / letters.length : 0;
+
+  return {
+    tokens: tokens.length,
+    englishHits,
+    turkishHits,
+    englishRatio,
+    turkishRatio,
+    turkishCharRatio
+  };
+}
+
+function isTurkishNews(article) {
+  const title = normalizeText(article.title);
+  const description = normalizeText(article.description || article.content || article.excerpt);
+  if (!title || title.length < 8) return false;
+
+  const score = getLanguageScore(title, description);
+  if (score.tokens < 4) return false;
+  if (score.englishHits >= 4 && score.englishHits > score.turkishHits) return false;
+  if (score.englishRatio >= 0.24 && score.turkishRatio < 0.14 && score.turkishCharRatio < 0.012) return false;
+  if (score.turkishHits >= 2 || score.turkishCharRatio >= 0.018) return true;
+  if (score.turkishHits >= 1 && score.englishHits <= 1 && score.tokens <= 10) return true;
+  return false;
+}
+
+function getHost(value) {
+  try {
+    return new URL(value).hostname.replace(/^www\./, "").toLocaleLowerCase("tr-TR");
+  } catch {
+    return "";
+  }
+}
+
+function isTurkishSource(article) {
+  const urlHost = getHost(article.url || article.source_url);
+  if (!urlHost) return true;
+  return TURKISH_DOMAINS.some((domain) => urlHost === domain || urlHost.endsWith(`.${domain}`));
 }
 
 function normalizeArticle(article) {
   const title = normalizeText(article.title);
-  const description = normalizeText(article.description);
-  const content = normalizeText(article.content);
+  const description = normalizeText(article.description || article.content);
   const url = normalizeText(article.url);
   const source = normalizeText(article.source?.name);
-  const turkishBody = [description, content].filter((value) => TURKISH_SIGNAL_PATTERN.test(value));
 
   return {
     title,
-    content: [turkishBody.join("\n\n") || title, source ? `Kaynak: ${source}` : "", url ? `Haber linki: ${url}` : ""]
+    content: [description || title, source ? `Kaynak: ${source}` : "", url ? `Haber linki: ${url}` : ""]
       .filter(Boolean)
       .join("\n\n"),
     image_url: normalizeText(article.urlToImage),
@@ -75,16 +159,28 @@ async function fetchLocalSeedNews() {
   const fileUrl = new URL("../data/news.json", import.meta.url);
   const payload = await readFile(fileUrl, "utf8");
   const items = JSON.parse(payload);
-  const articles = (Array.isArray(items) ? items : [])
-    .map(normalizeLocalSeedArticle)
-    .filter((article) => article.title && article.content && isLikelyTurkishArticle(article))
-    .slice(0, MAX_NEWS_PER_RUN);
+  let skippedEnglish = 0;
+  let skippedInvalid = 0;
+  const articles = [];
+
+  for (const item of Array.isArray(items) ? items : []) {
+    const article = normalizeLocalSeedArticle(item);
+    if (!article.title || !article.content) {
+      skippedInvalid += 1;
+      continue;
+    }
+    if (!isTurkishNews(article)) {
+      skippedEnglish += 1;
+      continue;
+    }
+    articles.push(article);
+  }
 
   return {
-    articles,
-    fetched: articles.length,
-    skippedEnglish: 0,
-    skippedInvalid: 0,
+    articles: articles.slice(0, MAX_NEWS_PER_RUN),
+    fetched: Array.isArray(items) ? items.length : 0,
+    skippedEnglish,
+    skippedInvalid,
     sourceCount: 1
   };
 }
@@ -98,114 +194,46 @@ function dedupeArticles(articles) {
     if (!key || seen.has(key)) continue;
     seen.add(key);
     result.push(article);
-    if (result.length >= MAX_NEWS_PER_RUN) break;
+    if (result.length >= MAX_NEWS_PER_RUN * 2) break;
   }
 
   return result;
 }
 
-function getOptionalEnv(name) {
-  return process.env[name] || "";
-}
+async function fetchEverything(query, newsApiKey) {
+  const params = new URLSearchParams({
+    q: query,
+    language: "tr",
+    domains: TURKISH_DOMAINS.join(","),
+    sortBy: "publishedAt",
+    pageSize: String(MAX_NEWS_PER_RUN),
+    apiKey: newsApiKey
+  });
 
-function extractResponseText(payload) {
-  if (payload?.output_text) return payload.output_text;
-
-  const output = Array.isArray(payload?.output) ? payload.output : [];
-  for (const item of output) {
-    const content = Array.isArray(item?.content) ? item.content : [];
-    for (const part of content) {
-      if (part?.type === "output_text" && part.text) return part.text;
-      if (part?.text) return part.text;
-    }
+  const response = await fetch(`${NEWS_API_EVERYTHING_ENDPOINT}?${params.toString()}`);
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    console.warn("News API everything skipped:", query, response.status, payload?.message || payload);
+    return [];
   }
-
-  return "";
+  return Array.isArray(payload?.articles) ? payload.articles : [];
 }
 
-async function rewriteArticleInTurkish(article, openaiApiKey) {
-  if (!openaiApiKey) return article;
+async function fetchTopHeadlines(query, newsApiKey) {
+  const params = new URLSearchParams({
+    q: query,
+    country: "tr",
+    pageSize: String(MAX_NEWS_PER_RUN),
+    apiKey: newsApiKey
+  });
 
-  try {
-    const response = await fetch(OPENAI_RESPONSES_ENDPOINT, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${openaiApiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        instructions:
-          "Sen deneyimli bir Türkçe haber editörüsün. Metni NTV, Habertürk ve Webtekno çizgisinde net, doğal, profesyonel Türkçe haber diline çevirip yeniden yaz. Bozuk karakter kullanma. Yarım cümle kurma. Abartılı clickbait yazma. Sadece geçerli JSON döndür.",
-        input: `Kaynak başlık: ${article.title}\n\nKaynak metin: ${article.content}\n\nKaynak link: ${article.source_url || ""}`,
-        text: {
-          format: {
-            type: "json_schema",
-            name: "turkish_news_article",
-            strict: true,
-            schema: {
-              type: "object",
-              additionalProperties: false,
-              properties: {
-                title: {
-                  type: "string",
-                  description: "Kısa, vurucu ve doğal Türkçe haber başlığı."
-                },
-                description: {
-                  type: "string",
-                  description: "Doğal Türkçe haber özeti. 2-4 cümle."
-                }
-              },
-              required: ["title", "description"]
-            }
-          }
-        }
-      })
-    });
-
-    if (!response.ok) {
-      console.warn("OpenAI rewrite skipped:", response.status);
-      return article;
-    }
-
-    const payload = await response.json();
-    const text = extractResponseText(payload);
-    const rewritten = JSON.parse(text);
-    const title = normalizeText(rewritten.title);
-    const description = normalizeText(rewritten.description);
-
-    if (!title || !description) return article;
-
-    return {
-      ...article,
-      title,
-      content: [description, article.source_url ? `Kaynak haberi oku: ${article.source_url}` : ""]
-        .filter(Boolean)
-        .join("\n\n")
-    };
-  } catch (error) {
-    console.warn("OpenAI rewrite failed, original article kept:", error?.message || error);
-    return article;
+  const response = await fetch(`${NEWS_API_HEADLINES_ENDPOINT}?${params.toString()}`);
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    console.warn("News API headlines skipped:", query, response.status, payload?.message || payload);
+    return [];
   }
-}
-
-async function rewriteArticlesInTurkish(articles) {
-  const openaiApiKey = getOptionalEnv("OPENAI_API_KEY");
-  const rewritten = [];
-
-  for (const article of articles) {
-    rewritten.push(await rewriteArticleInTurkish(article, openaiApiKey));
-  }
-
-  return rewritten;
-}
-
-function isLikelyTurkishArticle(article) {
-  const title = normalizeText(article.title).toLocaleLowerCase("tr-TR");
-  const content = normalizeText(article.content).toLocaleLowerCase("tr-TR");
-  const haystack = `${title} ${content}`;
-  if (!title) return false;
-  return TURKISH_SIGNAL_PATTERN.test(haystack);
+  return Array.isArray(payload?.articles) ? payload.articles : [];
 }
 
 async function fetchNews(newsApiKey) {
@@ -218,43 +246,45 @@ async function fetchNews(newsApiKey) {
   let sourceCount = 0;
 
   for (const query of NEWS_QUERIES) {
-    const params = new URLSearchParams({
-      country: "tr",
-      language: "tr",
-      q: query,
-      pageSize: String(MAX_NEWS_PER_RUN),
-      apiKey: newsApiKey
-    });
-
-    let response = await fetch(`${NEWS_API_ENDPOINT}?${params.toString()}`);
-    let payload = await response.json().catch(() => null);
-
-    if (!response.ok && String(payload?.message || "").toLocaleLowerCase("tr-TR").includes("language")) {
-      params.delete("language");
-      response = await fetch(`${NEWS_API_ENDPOINT}?${params.toString()}`);
-      payload = await response.json().catch(() => null);
-    }
-
-    if (!response.ok) {
-      console.warn("News API source skipped:", query, response.status, payload?.message || payload);
-      continue;
-    }
-
-    sourceCount += 1;
-    rawArticles.push(...(Array.isArray(payload?.articles) ? payload.articles : []));
+    const articles = [
+      ...(await fetchEverything(query, newsApiKey)),
+      ...(await fetchTopHeadlines(query, newsApiKey))
+    ];
+    if (articles.length) sourceCount += 1;
+    rawArticles.push(...articles);
     if (dedupeArticles(rawArticles).length >= MAX_NEWS_PER_RUN) break;
   }
 
   const uniqueRawArticles = dedupeArticles(rawArticles);
-  const normalizedArticles = uniqueRawArticles
-    .slice(0, MAX_NEWS_PER_RUN)
-    .map(normalizeArticle)
-    .filter((article) => article.title && article.content)
-    .slice(0, MAX_NEWS_PER_RUN);
-  const rewrittenArticles = await rewriteArticlesInTurkish(normalizedArticles);
-  const articles = rewrittenArticles.filter(isLikelyTurkishArticle).slice(0, MAX_NEWS_PER_RUN);
-  const skippedInvalid = Math.max(0, uniqueRawArticles.length - normalizedArticles.length);
-  const skippedEnglish = Math.max(0, normalizedArticles.length - articles.length);
+  let skippedEnglish = 0;
+  let skippedInvalid = 0;
+  const articles = [];
+
+  for (const rawArticle of uniqueRawArticles) {
+    if (!rawArticle?.title || !(rawArticle.description || rawArticle.content)) {
+      skippedInvalid += 1;
+      continue;
+    }
+
+    if (!isTurkishSource(rawArticle) || !isTurkishNews(rawArticle)) {
+      skippedEnglish += 1;
+      continue;
+    }
+
+    const article = normalizeArticle(rawArticle);
+    if (!article.title || !article.content) {
+      skippedInvalid += 1;
+      continue;
+    }
+
+    if (!isTurkishNews(article)) {
+      skippedEnglish += 1;
+      continue;
+    }
+
+    articles.push(article);
+    if (articles.length >= MAX_NEWS_PER_RUN) break;
+  }
 
   return {
     articles,
@@ -291,6 +321,11 @@ async function supabaseRequest(path, options = {}) {
   }
 
   return payload;
+}
+
+async function countStoredPosts() {
+  const rows = await supabaseRequest("posts?select=id", { method: "GET" });
+  return Array.isArray(rows) ? rows.length : 0;
 }
 
 async function titleExists(title) {
@@ -353,19 +388,9 @@ async function insertPost(article, options = {}) {
   });
 }
 
-function isMissingSourceUrlColumn(error) {
+function isMissingColumn(error, names) {
   const message = `${error?.message || ""} ${JSON.stringify(error?.payload || {})}`;
-  return message.includes("source_url") && (message.includes("schema cache") || message.includes("column"));
-}
-
-function isMissingUrlColumn(error) {
-  const message = `${error?.message || ""} ${JSON.stringify(error?.payload || {})}`;
-  return (message.includes("url") || message.includes("sourceUrl")) && (message.includes("schema cache") || message.includes("column"));
-}
-
-function isMissingLocaleColumn(error) {
-  const message = `${error?.message || ""} ${JSON.stringify(error?.payload || {})}`;
-  return (message.includes("country") || message.includes("language")) && (message.includes("schema cache") || message.includes("column"));
+  return names.some((name) => message.includes(name)) && (message.includes("schema cache") || message.includes("column"));
 }
 
 async function insertPostWithFallback(article, state) {
@@ -374,21 +399,18 @@ async function insertPostWithFallback(article, state) {
       await insertPost(article, state);
       return;
     } catch (error) {
-      if (state.includeLocaleFields && isMissingLocaleColumn(error)) {
+      if (state.includeLocaleFields && isMissingColumn(error, ["country", "language"])) {
         state.includeLocaleFields = false;
-        console.warn("Retrying insert without country/language:", article.title);
         continue;
       }
 
-      if (state.includeSourceUrl && isMissingSourceUrlColumn(error)) {
+      if (state.includeSourceUrl && isMissingColumn(error, ["source_url"])) {
         state.includeSourceUrl = false;
-        console.warn("Retrying insert without source_url:", article.title);
         continue;
       }
 
-      if (state.includeUrlFields && isMissingUrlColumn(error)) {
+      if (state.includeUrlFields && isMissingColumn(error, ["url", "sourceUrl"])) {
         state.includeUrlFields = false;
-        console.warn("Retrying insert without url/sourceUrl:", article.title);
         continue;
       }
 
@@ -414,7 +436,6 @@ export default async function handler(req, res) {
     const requestSecret = getSecretFromRequest(req);
 
     if (!requestSecret || requestSecret !== expectedSecret) {
-      console.warn("Unauthorized import-news request.");
       return sendJson(res, 401, {
         ok: false,
         error: "Unauthorized"
@@ -422,18 +443,22 @@ export default async function handler(req, res) {
     }
 
     const newsApiKey = getOptionalEnv("NEWS_API_KEY");
-    const { articles, fetched, skippedEnglish, skippedInvalid, sourceCount } = await fetchNews(newsApiKey);
+    const { articles, fetched, skippedEnglish, skippedInvalid } = await fetchNews(newsApiKey);
     let inserted = 0;
     let duplicates = 0;
+    let finalSkippedEnglish = skippedEnglish;
     const insertState = {
       includeSourceUrl: true,
       includeUrlFields: true,
       includeLocaleFields: true
     };
 
-    console.log(`Fetched ${articles.length} articles.`);
-
     for (const article of articles) {
+      if (!isTurkishNews(article)) {
+        finalSkippedEnglish += 1;
+        continue;
+      }
+
       const duplicateByTitle = await titleExists(article.title);
       let duplicateByUrl = false;
 
@@ -441,36 +466,32 @@ export default async function handler(req, res) {
         try {
           duplicateByUrl = await sourceUrlExists(article.source_url);
         } catch (error) {
-          if (!isMissingSourceUrlColumn(error)) throw error;
+          if (!isMissingColumn(error, ["source_url"])) throw error;
           insertState.includeSourceUrl = false;
-          console.warn("posts.source_url column not found. Continuing with title duplicate checks.");
           duplicateByUrl = await sourceUrlExistsInContent(article.source_url);
         }
       }
 
       if (duplicateByTitle || duplicateByUrl) {
         duplicates += 1;
-        console.log("Duplicate skipped:", article.title);
         continue;
       }
 
       await insertPostWithFallback(article, insertState);
-
       inserted += 1;
-      console.log("Inserted:", article.title);
     }
+
+    const totalStored = await countStoredPosts();
 
     return sendJson(res, 200, {
       ok: true,
       fetched,
       inserted,
       duplicates,
-      skipped: skippedEnglish + skippedInvalid,
-      skippedEnglish,
+      skippedEnglish: finalSkippedEnglish,
       skippedInvalid,
-      sourceCount,
-      sampleTitles: articles.slice(0, 5).map((article) => article.title),
-      total: articles.length
+      totalStored,
+      sampleTitles: articles.slice(0, 5).map((article) => article.title)
     });
   } catch (error) {
     console.error("TechPulse import-news failed:", error);
