@@ -162,7 +162,12 @@ async function loadNews() {
 
   renderStatus(container, "Haberler yükleniyor...");
 
-  const { data, error } = await supabase
+  if (!window.supabaseClient) {
+    console.error("Supabase client is not initialized.");
+    return;
+  }
+
+  const { data, error } = await window.supabaseClient
     .from("posts")
     .select("id,title,content,image_url,published,created_at")
     .eq("published", true)
@@ -204,7 +209,12 @@ async function loadSingleNews() {
 
   renderStatus(container, "Haber yükleniyor...");
 
-  const { data, error } = await supabase
+  if (!window.supabaseClient) {
+    console.error("Supabase client is not initialized.");
+    return;
+  }
+
+  const { data, error } = await window.supabaseClient
     .from("posts")
     .select("id,title,content,image_url,published,created_at")
     .eq("id", id)
@@ -242,7 +252,12 @@ async function saveContactMessage(event) {
     message: form.message.value.trim()
   };
 
-  const { error } = await supabase
+  if (!window.supabaseClient) {
+    console.error("Supabase client is not initialized.");
+    return;
+  }
+
+  const { error } = await window.supabaseClient
     .from("contact_messages")
     .insert([message]);
 
@@ -266,7 +281,12 @@ async function saveNewsletter(event) {
     email: form.email.value.trim()
   };
 
-  const { error } = await supabase
+  if (!window.supabaseClient) {
+    console.error("Supabase client is not initialized.");
+    return;
+  }
+
+  const { error } = await window.supabaseClient
     .from("newsletter_subscribers")
     .insert([subscriber]);
 

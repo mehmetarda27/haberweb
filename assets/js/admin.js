@@ -124,7 +124,12 @@ async function loadAdminNews() {
 
   list.innerHTML = `<div class="empty-state">Haberler yükleniyor...</div>`;
 
-  const { data, error } = await supabase
+  if (!window.supabaseClient) {
+    console.error("Supabase client is not initialized.");
+    return;
+  }
+
+  const { data, error } = await window.supabaseClient
     .from("posts")
     .select("id,title,content,image_url,published,created_at")
     .order("created_at", { ascending: false });
@@ -152,9 +157,15 @@ async function createNews(event) {
   $("saveBtn").disabled = true;
   setAdminMessage(editingId ? "Haber güncelleniyor..." : "Haber ekleniyor...");
 
+  if (!window.supabaseClient) {
+    console.error("Supabase client is not initialized.");
+    $("saveBtn").disabled = false;
+    return;
+  }
+
   const request = editingId
-    ? supabase.from("posts").update(news).eq("id", editingId)
-    : supabase.from("posts").insert([news]);
+    ? window.supabaseClient.from("posts").update(news).eq("id", editingId)
+    : window.supabaseClient.from("posts").insert([news]);
 
   const { error } = await request;
   $("saveBtn").disabled = false;
@@ -192,7 +203,12 @@ async function deleteNews(id) {
   const ok = confirm(`"${selected?.title || "Bu haber"}" silinsin mi?`);
   if (!ok) return;
 
-  const { error } = await supabase
+  if (!window.supabaseClient) {
+    console.error("Supabase client is not initialized.");
+    return;
+  }
+
+  const { error } = await window.supabaseClient
     .from("posts")
     .delete()
     .eq("id", id);
