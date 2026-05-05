@@ -374,12 +374,9 @@ function renderTags() {
 async function fetchPosts(select = "id,title,content,image_url,published,created_at") {
   if (!window.supabaseClient) throw new Error("Supabase client is not initialized.");
   const { data, error } = await window.supabaseClient
-    .from("posts")
-    .select(select)
-    .eq("published", true)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  .from("posts")
+  .select(select)
+  .order("created_at", { ascending: false });
 }
 
 async function fetchPublishedPosts() {
