@@ -144,7 +144,8 @@ function articleImage(article) {
 }
 
 function normalizeImageUrl(article) {
-  return normalizeText(article.image_url || article.imageUrl || article.urlToImage || article.image || article.thumbnail || article.sourceImage || article.urlToImageLarge);
+  const imageUrl = normalizeText(article.image_url || article.imageUrl || article.urlToImage || article.image || article.thumbnail || article.sourceImage || article.urlToImageLarge);
+  return imageUrl.includes("assets/news/tp-") ? "" : imageUrl;
 }
 
 function fallbackImageForArticle(article) {
@@ -581,7 +582,9 @@ async function loadSingleNews() {
     document.title = `${data.title || "Haber"} | TechPulse`;
     container.innerHTML = `
       <article class="news-detail">
-        ${imageMarkup(data, "detail-image")}
+        <div class="detail-media">
+          ${imageMarkup(data, "detail-image")}
+        </div>
         <div class="news-detail-body">
           <div class="meta-line"><span>${escapeHTML(category)}</span><span>${formatDate(data.created_at)}</span></div>
           <h1>${escapeHTML(data.title || "Başlıksız Haber")}</h1>
