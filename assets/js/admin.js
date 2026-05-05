@@ -1,4 +1,6 @@
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1600&q=85";
+const TURKISH_SIGNAL_PATTERN = /[\u00e7\u011f\u0131\u00f6\u015f\u00fc\u00c7\u011e\u0130\u00d6\u015e\u00dc]|\b(ve|ile|i\u00e7in|bir|son|yeni|g\u00fcn|sonra|\u00f6nce|t\u00fcrkiye|ankara|istanbul|izmir|haber|a\u00e7\u0131kland\u0131|geldi|oldu|var|yok|en|bu|\u015fu|g\u00f6re|karar|ba\u015fkan|bakan|d\u00fcnya|ekonomi|spor|teknoloji|sa\u011fl\u0131k|magazin|g\u00fcndem)\b/i;
+const ENGLISH_SIGNAL_PATTERN = /\b(the|and|with|after|before|from|over|under|into|about|this|that|will|could|would|says|said|new|latest|breaking|report|update|source|news)\b/i;
 
 let adminNews = [];
 let adminSearchTerm = "";
@@ -22,6 +24,15 @@ function stripHTML(value) {
 function shortContent(value, length = 120) {
   const text = stripHTML(value);
   return text.length > length ? `${text.slice(0, length).trim()}...` : text;
+}
+
+function isLikelyTurkishArticle(article) {
+  const title = String(article.title || "").toLocaleLowerCase("tr-TR");
+  const content = String(article.content || "").toLocaleLowerCase("tr-TR");
+  const haystack = `${title} ${content}`;
+  if (!title.trim()) return false;
+  if (TURKISH_SIGNAL_PATTERN.test(haystack)) return true;
+  return !ENGLISH_SIGNAL_PATTERN.test(title);
 }
 
 function formatDate(value) {
@@ -224,12 +235,49 @@ async function deleteNews(id) {
   await loadAdminNews();
 }
 
+async function cleanForeignNews() {
+  if (!window.supabaseClient) {
+    setAdminMessage("Supabase bağlantısı hazır değil.", "error");
+    return;
+  }
+
+  const foreignItems = adminNews.filter((item) => !isLikelyTurkishArticle(item));
+  if (!foreignItems.length) {
+    setAdminMessage("Temizlenecek yabancı haber bulunamadı.", "success");
+    return;
+  }
+
+  const ok = confirm(`${foreignItems.length} yabancı haber silinsin mi? Türkçe görünen haberler korunacak.`);
+  if (!ok) return;
+
+  setAdminMessage("Yabancı haberler temizleniyor...");
+  const ids = foreignItems.map((item) => item.id);
+  const { error } = await window.supabaseClient
+    .from("posts")
+    .delete()
+    .in("id", ids);
+
+  if (error) {
+    setAdminMessage("Yabancı haberler silinemedi.", "error");
+    return;
+  }
+
+  setAdminMessage(`${ids.length} yabancı haber temizlendi.`, "success");
+  await loadAdminNews();
+}
+
+function bindOptionalButton(id, handler) {
+  const button = $(id);
+  if (button) button.addEventListener("click", handler);
+}
+
 function bindAdminEvents() {
   const form = document.querySelector("[data-news-form]");
   if (form) form.addEventListener("submit", createNews);
 
   $("clearFormBtn").addEventListener("click", clearForm);
   $("cancelEditBtn").addEventListener("click", clearForm);
+  bindOptionalButton("cleanForeignBtn", cleanForeignNews);
   $("adminSearch").addEventListener("input", (event) => {
     adminSearchTerm = event.target.value;
     renderAdminTable();

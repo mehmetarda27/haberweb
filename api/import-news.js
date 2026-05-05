@@ -48,15 +48,19 @@ function normalizeArticle(article) {
       .join("\n\n"),
     image_url: normalizeText(article.urlToImage),
     source_url: url,
+    country: "tr",
+    language: "tr",
     published: true
   };
 }
 
-function isLikelyTurkishTitle(title) {
-  const normalizedTitle = normalizeText(title).toLocaleLowerCase("tr-TR");
-  if (!normalizedTitle) return false;
-  if (TURKISH_SIGNAL_PATTERN.test(normalizedTitle)) return true;
-  return !ENGLISH_SIGNAL_PATTERN.test(normalizedTitle);
+function isLikelyTurkishArticle(article) {
+  const title = normalizeText(article.title).toLocaleLowerCase("tr-TR");
+  const content = normalizeText(article.content).toLocaleLowerCase("tr-TR");
+  const haystack = `${title} ${content}`;
+  if (!title) return false;
+  if (TURKISH_SIGNAL_PATTERN.test(haystack)) return true;
+  return !ENGLISH_SIGNAL_PATTERN.test(title);
 }
 
 async function fetchNews(newsApiKey) {
@@ -78,7 +82,7 @@ async function fetchNews(newsApiKey) {
   const articles = rawArticles
     .map(normalizeArticle)
     .filter((article) => article.title && article.content)
-    .filter((article) => isLikelyTurkishTitle(article.title))
+    .filter(isLikelyTurkishArticle)
     .slice(0, MAX_NEWS_PER_RUN);
 
   return {
@@ -147,7 +151,8 @@ async function sourceUrlExistsInContent(sourceUrl) {
   return Array.isArray(rows) && rows.length > 0;
 }
 
-async function insertPost(article, includeSourceUrl) {
+async function insertPost(article, options = {}) {
+  const { includeSourceUrl = true, includeLocaleFields = true } = options;
   const post = {
     title: article.title,
     content: article.content,
@@ -159,6 +164,11 @@ async function insertPost(article, includeSourceUrl) {
     post.source_url = article.source_url;
   }
 
+  if (includeLocaleFields) {
+    post.country = "tr";
+    post.language = "tr";
+  }
+
   return supabaseRequest("posts", {
     method: "POST",
     body: JSON.stringify([post])
@@ -168,6 +178,36 @@ async function insertPost(article, includeSourceUrl) {
 function isMissingSourceUrlColumn(error) {
   const message = `${error?.message || ""} ${JSON.stringify(error?.payload || {})}`;
   return message.includes("source_url") && (message.includes("schema cache") || message.includes("column"));
+}
+
+function isMissingLocaleColumn(error) {
+  const message = `${error?.message || ""} ${JSON.stringify(error?.payload || {})}`;
+  return (message.includes("country") || message.includes("language")) && (message.includes("schema cache") || message.includes("column"));
+}
+
+async function insertPostWithFallback(article, state) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await insertPost(article, state);
+      return;
+    } catch (error) {
+      if (state.includeLocaleFields && isMissingLocaleColumn(error)) {
+        state.includeLocaleFields = false;
+        console.warn("Retrying insert without country/language:", article.title);
+        continue;
+      }
+
+      if (state.includeSourceUrl && isMissingSourceUrlColumn(error)) {
+        state.includeSourceUrl = false;
+        console.warn("Retrying insert without source_url:", article.title);
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  await insertPost(article, state);
 }
 
 export default async function handler(req, res) {
@@ -196,7 +236,10 @@ export default async function handler(req, res) {
     const { articles, fetched, skipped } = await fetchNews(newsApiKey);
     let inserted = 0;
     let duplicates = 0;
-    let includeSourceUrl = true;
+    const insertState = {
+      includeSourceUrl: true,
+      includeLocaleFields: true
+    };
 
     console.log(`Fetched ${articles.length} articles.`);
 
@@ -204,12 +247,12 @@ export default async function handler(req, res) {
       const duplicateByTitle = await titleExists(article.title);
       let duplicateByUrl = false;
 
-      if (includeSourceUrl && article.source_url) {
+      if (insertState.includeSourceUrl && article.source_url) {
         try {
           duplicateByUrl = await sourceUrlExists(article.source_url);
         } catch (error) {
           if (!isMissingSourceUrlColumn(error)) throw error;
-          includeSourceUrl = false;
+          insertState.includeSourceUrl = false;
           console.warn("posts.source_url column not found. Continuing with title duplicate checks.");
           duplicateByUrl = await sourceUrlExistsInContent(article.source_url);
         }
@@ -221,14 +264,7 @@ export default async function handler(req, res) {
         continue;
       }
 
-      try {
-        await insertPost(article, includeSourceUrl);
-      } catch (error) {
-        if (!includeSourceUrl || !isMissingSourceUrlColumn(error)) throw error;
-        includeSourceUrl = false;
-        console.warn("Retrying insert without source_url:", article.title);
-        await insertPost(article, false);
-      }
+      await insertPostWithFallback(article, insertState);
 
       inserted += 1;
       console.log("Inserted:", article.title);
