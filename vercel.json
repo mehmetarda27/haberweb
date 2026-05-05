@@ -1,8 +1,7 @@
 {
-  "crons": [
-    {
-      "path": "/api/import-news",
-      "schedule": "0 */2 * * *"
+  "functions": {
+    "api/*.js": {
+      "runtime": "nodejs18.x"
     }
-  ]
+  }
 }
