@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TechPulse Admin | Haber Yönetimi</title>
+  <meta name="description" content="TechPulse haber ekleme, düzenleme ve silme paneli." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="admin">
+  <div class="admin-layout">
+    <aside class="admin-sidebar">
+      <a class="brand" href="index.html" aria-label="TechPulse ana sayfa">
+        <span class="brand-mark">TP</span>
+        <span class="brand-text">TechPulse</span>
+      </a>
+      <nav class="admin-nav" aria-label="Admin navigasyon">
+        <a class="is-active" href="#dashboard">Dashboard</a>
+        <a href="#editor">Haber Editörü</a>
+        <a href="#table">Haber Tablosu</a>
+        <a href="index.html">Siteyi Aç</a>
+      </nav>
+    </aside>
+
+    <main class="admin-main" id="dashboard">
+      <header class="admin-header">
+        <div>
+          <span class="eyebrow">Yönetim merkezi</span>
+          <h1>TechPulse haber CMS</h1>
+          <p>Haberleri tek veri modelinden yönet, vitrine anında yansıt.</p>
+        </div>
+        <button id="resetDemoBtn" class="ghost-button" type="button">Demo Veriyi Yenile</button>
+      </header>
+
+      <section class="stats-grid" aria-label="İstatistikler">
+        <article class="stat-card"><span>Toplam haber</span><strong id="statNews">0</strong></article>
+        <article class="stat-card"><span>Toplam kategori</span><strong id="statCategories">0</strong></article>
+        <article class="stat-card"><span>Toplam etiket</span><strong id="statTags">0</strong></article>
+        <article class="stat-card"><span>Toplam görüntülenme</span><strong id="statViews">0</strong></article>
+      </section>
+
+      <section class="admin-workspace" id="editor">
+        <form id="newsForm" class="editor-panel">
+          <div class="section-heading compact">
+            <div>
+              <span class="eyebrow">Haber editörü</span>
+              <h2 id="formTitle">Yeni haber</h2>
+            </div>
+            <button id="clearFormBtn" class="ghost-button" type="button">Temizle</button>
+          </div>
+
+          <input id="editingId" type="hidden" />
+          <label>Başlık<input id="titleInput" required maxlength="140" /></label>
+          <label>Kısa açıklama<textarea id="excerptInput" required rows="3"></textarea></label>
+          <label>Tam içerik<textarea id="contentInput" required rows="9" placeholder="Paragrafları yeni satırlarla ayırın."></textarea></label>
+          <div class="form-grid-two">
+            <label>Kategori<select id="categoryInput" required></select></label>
+            <label>Okuma süresi<input id="readTimeInput" type="number" min="1" value="4" required /></label>
+          </div>
+          <label>Görsel URL<input id="imageInput" required /></label>
+          <label>Etiketler<input id="tagsInput" placeholder="yapay zeka, güvenlik, donanım" /></label>
+          <div class="form-grid-two">
+            <label>Görüntülenme<input id="viewsInput" type="number" min="0" value="0" /></label>
+            <label>Tarih<input id="dateInput" type="date" required /></label>
+          </div>
+          <label class="check-row"><input id="featuredInput" type="checkbox" /> Öne çıkan haber</label>
+          <div class="form-actions">
+            <button id="saveBtn" class="primary-button" type="submit">Haberi Kaydet</button>
+            <button id="cancelEditBtn" class="ghost-button is-hidden" type="button">Düzenlemeyi İptal Et</button>
+          </div>
+        </form>
+
+        <aside class="preview-panel">
+          <div class="section-heading compact">
+            <div>
+              <span class="eyebrow">Canlı önizleme</span>
+              <h2>Kart görünümü</h2>
+            </div>
+          </div>
+          <article id="previewCard" class="news-card preview-card"></article>
+        </aside>
+      </section>
+
+      <section class="table-panel" id="table">
+        <div class="section-heading compact">
+          <div>
+            <span class="eyebrow">Kayıtlı haberler</span>
+            <h2>Haber tablosu</h2>
+          </div>
+          <input id="adminSearch" class="table-search" type="search" placeholder="Listede ara" />
+        </div>
+        <div id="newsTable" class="news-table"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

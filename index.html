@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TechPulse | Premium Teknoloji Haberleri</title>
+  <meta name="description" content="TechPulse, modern ve premium dark temalÄ± teknoloji haber sitesi." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-page="home">
+  <header class="site-header container">
+    <a class="brand" href="index.html" aria-label="TechPulse ana sayfa">
+      <span class="brand-mark">TP</span>
+      <span class="brand-text">TechPulse</span>
+    </a>
+    <nav class="main-nav" aria-label="Ana navigasyon">
+      <a href="#top" class="nav-link is-active">GÃ¼ndem</a>
+      <a href="#latest" class="nav-link">Son Haberler</a>
+    </nav>
+    <label class="search-shell" aria-label="Haber ara">
+      <span>âŒ•</span>
+      <input id="searchInput" type="search" placeholder="Haber ara" autocomplete="off" />
+    </label>
+  </header>
+
+  <main id="top" class="page-shell container">
+    <section class="hero-section hero">
+      <div class="hero-copy">
+        <span class="eyebrow">Premium teknoloji medyasÄ±</span>
+        <h1 class="hero-title"><span class="hero-line">Teknoloji</span><span class="hero-line">gÃ¼ndeminin</span><span class="hero-line">nabzÄ± burada</span><span class="hero-line">atÄ±yor.</span></h1>
+        <p>Yapay zekadan siber gÃ¼venliÄŸe, mobil dÃ¼nyadan donanÄ±ma kadar gÃ¼nÃ¼n kritik geliÅŸmeleri tek merkezli haber modeliyle yayÄ±nlanÄ±r.</p>
+        <div id="categoryFilters" class="category-strip" aria-label="Kategori filtreleri"></div>
+      </div>
+      <article id="featuredNews" class="featured-story hero-featured featured-card" aria-live="polite"></article>
+    </section>
+
+    <section class="content-layout">
+      <div class="main-feed">
+        <div class="section-heading" id="latest">
+          <div>
+            <span class="eyebrow">Son Haberler</span>
+            <h2>Vitrindeki geliÅŸmeler</h2>
+          </div>
+          <p id="resultMeta">TÃ¼mÃ¼</p>
+        </div>
+        <div id="newsGrid" class="news-grid" aria-live="polite"></div>
+      </div>
+
+      <aside class="sidebar">
+        <section class="side-panel">
+          <div class="panel-title">
+            <h3>En Ã‡ok Okunanlar</h3>
+          </div>
+          <div id="popularList" class="popular-list"></div>
+        </section>
+        <section class="side-panel">
+          <div class="panel-title">
+            <h3>PopÃ¼ler Etiketler</h3>
+          </div>
+          <div id="tagCloud" class="tag-cloud"></div>
+        </section>
+        <section class="side-panel">
+          <div class="panel-title">
+            <h3>HÄ±zlÄ± Teknoloji SÃ¶zlÃ¼ÄŸÃ¼</h3>
+          </div>
+          <div id="dictionaryList" class="dictionary-list"></div>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <footer class="site-footer container">
+    <strong>TechPulse</strong>
+    <span>Tek merkezli haber verisi, ID tabanlÄ± detay okuma ve yerel CMS demosu.</span>
+  </footer>
+
+  <div id="newsModal" class="modal-backdrop" aria-hidden="true">
+    <article class="news-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button id="closeModal" class="modal-close" type="button" aria-label="Haberi kapat">Ã—</button>
+      <img id="modalImage" class="modal-image" src="" alt="" />
+      <div class="modal-body">
+        <div id="modalMeta" class="modal-meta"></div>
+        <h2 id="modalTitle"></h2>
+        <p id="modalExcerpt" class="modal-excerpt"></p>
+        <div id="modalContent" class="modal-content"></div>
+        <div id="modalTags" class="modal-tags"></div>
+      </div>
+    </article>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
