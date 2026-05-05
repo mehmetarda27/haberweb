@@ -421,12 +421,14 @@ async function fetchPostById(id) {
             .from("posts")
             .select(select)
             .eq(field, id)
-            .eq("published", true)
             .maybeSingle();
 
           console.log("[TechPulse detail] Supabase query:", { field, id, data: response.data, error: response.error });
 
-          if (response.error) continue;
+          if (response.error) {
+            console.error("Supabase error:", response.error);
+            continue;
+          }
           if (response.data) {
             data = normalizeNewsImage(response.data);
             break;
@@ -445,7 +447,10 @@ async function fetchPostById(id) {
     console.log("[TechPulse detail] Local fallback sonucu:", data || null);
   }
 
-  if (!data) throw new Error("Article not found.");
+  if (!data) {
+    console.log("Haber bulunamadı, id:", id);
+    throw new Error("Article not found.");
+  }
   console.log("[TechPulse detail] Render edilecek haber:", data);
   return data;
 }
